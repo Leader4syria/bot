@@ -2,14 +2,20 @@ import traceback
 from telebot import types
 from . import bot, user_states
 from database import Session, Category, Service, Order, User
-from utils import create_categories_keyboard, create_services_keyboard, edit_message_text_and_markup, delete_message, create_back_to_main_menu_inline_keyboard, send_message_to_user
+from utils import create_categories_keyboard, create_services_keyboard, edit_message_text_and_markup, delete_message, create_back_to_main_menu_inline_keyboard, send_message_to_user, is_user_subscribed, send_subscription_message
 from sqlalchemy.orm import joinedload
 from receipt_generator import send_order_receipt
 from config import ADMIN_IDS
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_services_menu")
 def show_services_menu(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     s = Session()
     main_categories = s.query(Category).filter_by(parent_id=None).all()
@@ -26,7 +32,13 @@ def show_services_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('cat_'))
 def callback_category_selection(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     category_id = int(call.data.split('_')[1])
     s = Session()
@@ -66,7 +78,13 @@ def callback_category_selection(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('service_'))
 def callback_service_selection(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     service_id = int(call.data.split('_')[1])
 
@@ -102,6 +120,10 @@ def handle_quantity_input(message):
     try:
         chat_id = message.chat.id
         telegram_id = message.from_user.id
+
+        if not is_user_subscribed(telegram_id):
+            send_subscription_message(chat_id)
+            return
 
         if user_states.get(chat_id, {}).get("state") != "waiting_quantity":
             bot.send_message(
@@ -191,6 +213,10 @@ def handle_link_or_id_input(message):
     try:
         chat_id = message.chat.id
         telegram_id = message.from_user.id
+
+        if not is_user_subscribed(telegram_id):
+            send_subscription_message(chat_id)
+            return
 
         if user_states.get(chat_id, {}).get("state") != "waiting_link_or_id":
             bot.send_message(chat_id, "يبدو أن جلستك قد انتهت أو حدث خطأ. يرجى البدء من جديد باستخدام /start.", parse_mode="HTML")

@@ -2,14 +2,20 @@ import traceback
 from telebot import types
 from . import bot, user_states
 from database import Session, User, Withdrawal
-from utils import edit_message_text_and_markup, delete_message, create_back_to_main_menu_inline_keyboard
+from utils import edit_message_text_and_markup, delete_message, create_back_to_main_menu_inline_keyboard, is_user_subscribed, send_subscription_message
 from sqlalchemy.orm import joinedload
 from datetime import datetime
 from config import MIN_REFERRAL_WITHDRAWAL_AMOUNT, REFERRAL_BONUS_AMOUNT, REFERRAL_COUNT_FOR_BONUS, ADMIN_IDS
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_referral_system")
 def show_referral_system(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     telegram_id = call.from_user.id
     s = Session()
@@ -50,7 +56,13 @@ def show_referral_system(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == "request_referral_withdrawal")
 def request_referral_withdrawal(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     telegram_id = call.from_user.id
 
@@ -86,6 +98,10 @@ def handle_withdrawal_amount_input(message):
     try:
         chat_id = message.chat.id
         telegram_id = message.from_user.id
+
+        if not is_user_subscribed(telegram_id):
+            send_subscription_message(chat_id)
+            return
 
         if user_states.get(chat_id, {}).get("state") != "waiting_referral_withdrawal_amount":
             bot.send_message(chat_id, "يبدو أن جلستك قد انتهت أو حدث خطأ. يرجى البدء من جديد باستخدام /start.", parse_mode="HTML")
@@ -148,6 +164,10 @@ def handle_payment_method_info_input(message):
     try:
         chat_id = message.chat.id
         telegram_id = message.from_user.id
+
+        if not is_user_subscribed(telegram_id):
+            send_subscription_message(chat_id)
+            return
 
         if user_states.get(chat_id, {}).get("state") != "waiting_payment_method_info":
             bot.send_message(chat_id, "يبدو أن جلستك قد انتهت أو حدث خطأ. يرجى البدء من جديد باستخدام /start.", parse_mode="HTML")

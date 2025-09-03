@@ -24,4 +24,4 @@ def api_key_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-from . import routes, users, services, categories, orders, stats, service_mappings, payment_methods, withdrawals
+from . import routes, users, services, categories, orders, stats, service_mappings, payment_methods, withdrawals, api_routes

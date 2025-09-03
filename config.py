@@ -15,6 +15,10 @@ BOT_NAME = "aleppo market"
 
 SUPPORT_CHANNEL_LINK = "https://t.me/AleepoMarket"
 
+# Mandatory subscription channel
+MANDATORY_CHANNEL_ID = -1002785826840
+MANDATORY_CHANNEL_LINK = "https://t.me/AleepoMarket"
+
 START_MESSAGE = "اهلا بك في ماركت حلب 🏰 "
 
 REFERRAL_BONUS_AMOUNT = 0.02

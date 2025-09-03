@@ -154,6 +154,23 @@ def edit_message_text_and_markup(chat_id, message_id, text, **kwargs):
     except Exception as e:
         print(f"فشل تعديل الرسالة {message_id} في الدردشة {chat_id}: {e}")
 
+def send_subscription_message(chat_id):
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("اضغط هنا للاشتراك", url=config.MANDATORY_CHANNEL_LINK))
+    markup.add(types.InlineKeyboardButton("✅ لقد اشتركت", callback_data="check_subscription"))
+    bot.send_message(chat_id, "عذراً، يجب عليك الاشتراك في قناة البوت أولاً لاستخدامه.", reply_markup=markup)
+
+def is_user_subscribed(user_id):
+    """
+    Checks if a user is a member of the mandatory channel.
+    """
+    try:
+        member = bot.get_chat_member(config.MANDATORY_CHANNEL_ID, user_id)
+        return member.status in ['member', 'administrator', 'creator']
+    except Exception as e:
+        print(f"Error checking subscription for user {user_id}: {e}")
+        return False
+
 def create_back_to_main_menu_inline_keyboard():
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🔙 القائمة الرئيسية", callback_data="main_menu"))

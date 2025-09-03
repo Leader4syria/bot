@@ -1,6 +1,27 @@
 from . import bot
 from database import Session, User, Order
-from utils import send_message_to_user, create_back_to_main_menu_inline_keyboard
+from utils import send_message_to_user, create_back_to_main_menu_inline_keyboard, is_user_subscribed
+
+def broadcast_message_to_all_users(message_text, parse_mode=None):
+    """
+    Sends a message to all users in the database.
+    Returns the number of users the message was sent to.
+    """
+    s = Session()
+    users = s.query(User).all()
+    s.close()
+
+    sent_count = 0
+    for user in users:
+        if is_user_subscribed(user.telegram_id):
+            success = send_message_to_user(
+                user.telegram_id,
+                message_text,
+                parse_mode=parse_mode
+            )
+            if success:
+                sent_count += 1
+    return sent_count
 
 def notify_user_order_status_update(order_id, new_status, user_telegram_id):
     s = Session()

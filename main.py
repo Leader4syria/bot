@@ -10,6 +10,7 @@ import bot
 import os
 from admin.auth import login_manager
 from admin import admin_bp
+from admin.api_routes import api_bp
 import config
 from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLASK_SECRET_KEY
 import hmac
@@ -21,6 +22,7 @@ from urllib.parse import parse_qsl
 app = Flask(__name__, static_folder='web')
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
 app.register_blueprint(admin_bp)
+app.register_blueprint(api_bp)
 login_manager.init_app(app)
 
 backup_bot = TeleBot(BOT_TOKEN)

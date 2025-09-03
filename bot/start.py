@@ -2,9 +2,9 @@ import traceback
 from telebot import types
 from . import bot, user_states
 from database import Session, User, Service
-from utils import get_or_create_user
+from utils import get_or_create_user, is_user_subscribed, send_subscription_message
 from utils import send_message_to_user
-from config import START_MESSAGE, ADMIN_IDS, SUPPORT_CHANNEL_LINK
+from config import START_MESSAGE, ADMIN_IDS, SUPPORT_CHANNEL_LINK, MANDATORY_CHANNEL_ID, MANDATORY_CHANNEL_LINK
 import config
 
 def create_main_menu_inline_keyboard():
@@ -30,6 +30,27 @@ def create_main_menu_inline_keyboard():
     )
     return markup
 
+@bot.callback_query_handler(func=lambda call: call.data == "check_subscription")
+def handle_check_subscription_callback(call):
+    user_id = call.from_user.id
+    chat_id = call.message.chat.id
+    if is_user_subscribed(user_id):
+        bot.delete_message(chat_id, call.message.message_id)
+        # We can't pass the whole message object, so we just call the start command handler logic again
+        # This will create a new message, which is acceptable.
+        class MockMessage:
+            def __init__(self, user, chat):
+                self.from_user = user
+                self.chat = chat
+                self.text = "/start"
+
+        mock_message = MockMessage(call.from_user, call.message.chat)
+        handle_start(mock_message)
+        bot.answer_callback_query(call.id, "شكراً لاشتراكك! يمكنك الآن استخدام البوت.")
+    else:
+        bot.answer_callback_query(call.id, "لم تشترك في القناة بعد. يرجى الاشتراك ثم الضغط على الزر مرة أخرى.", show_alert=True)
+
+
 @bot.message_handler(commands=['start'])
 def handle_start(message):
     try:
@@ -37,6 +58,10 @@ def handle_start(message):
         telegram_id = message.from_user.id
         username = message.from_user.username
         full_name = message.from_user.full_name
+
+        if not is_user_subscribed(telegram_id):
+            send_subscription_message(chat_id)
+            return
 
         referrer_id = None
         start_payload = None

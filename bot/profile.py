@@ -1,13 +1,19 @@
 from telebot import types
 from . import bot
 from database import Session, User, Order, PaymentMethod
-from utils import edit_message_text_and_markup, create_back_to_main_menu_inline_keyboard
+from utils import edit_message_text_and_markup, create_back_to_main_menu_inline_keyboard, is_user_subscribed, send_subscription_message
 from sqlalchemy.orm import joinedload
 import config
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_recharge_options")
 def show_recharge_options(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
 
     s = Session()
@@ -77,7 +83,13 @@ def show_recharge_options(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_my_balance")
 def show_my_balance(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     telegram_id = call.from_user.id
     s = Session()
@@ -105,7 +117,13 @@ def show_my_balance(call):
 
 @bot.callback_query_handler(func=lambda call: call.data == "show_my_orders")
 def show_my_orders(call):
+    user_id = call.from_user.id
     chat_id = call.message.chat.id
+    if not is_user_subscribed(user_id):
+        send_subscription_message(chat_id)
+        bot.answer_callback_query(call.id)
+        return
+
     message_id = call.message.message_id
     telegram_id = call.from_user.id
     s = Session()

@@ -2,7 +2,7 @@ import traceback
 from telebot import types
 from . import bot, user_states
 from database import Session, User
-from utils import edit_message_text_and_markup, get_or_create_user, delete_message
+from utils import edit_message_text_and_markup, get_or_create_user, delete_message, is_user_subscribed, send_subscription_message
 from config import START_MESSAGE, SUPPORT_CHANNEL_LINK
 import config
 
@@ -27,7 +27,13 @@ def create_main_menu_inline_keyboard():
 @bot.callback_query_handler(func=lambda call: call.data == "main_menu")
 def callback_main_menu(call):
     try:
+        user_id = call.from_user.id
         chat_id = call.message.chat.id
+        if not is_user_subscribed(user_id):
+            send_subscription_message(chat_id)
+            bot.answer_callback_query(call.id)
+            return
+
         message_id = call.message.message_id
         s = Session()
         user = s.query(User).filter_by(telegram_id=call.from_user.id).first()
@@ -53,6 +59,11 @@ def callback_main_menu(call):
 def handle_all_messages(message):
     chat_id = message.chat.id
     telegram_id = message.from_user.id
+
+    if not is_user_subscribed(telegram_id):
+        send_subscription_message(chat_id)
+        return
+
     username = message.from_user.username
     full_name = message.from_user.full_name
 
