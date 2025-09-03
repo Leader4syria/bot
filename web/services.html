@@ -654,12 +654,19 @@
             
             // تحليل params إذا كانت موجودة
             let paramsData = [];
-            try {
-                if (service.params) {
+            if (service.params) {
+                try {
+                    // First, try to parse it as JSON
                     paramsData = JSON.parse(service.params);
+                } catch (e) {
+                    // If parsing fails, it might be a plain string
+                    console.error('Could not parse service.params as JSON. Treating as a plain string.', e);
+                    // We check if it's a non-empty string
+                    if (typeof service.params === 'string' && service.params.trim() !== '') {
+                        // Treat the whole string as a single parameter
+                        paramsData = [service.params.trim()];
+                    }
                 }
-            } catch (e) {
-                console.error('Error parsing params:', e);
             }
             
             // تحليل qty_values إذا كانت موجودة
