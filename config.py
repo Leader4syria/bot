@@ -1,0 +1,28 @@
+import os
+
+BOT_TOKEN = "7058414712:AAGtGYTdZG7KmZ0dym_YXfb724vfVoXCYng"
+
+ADMIN_IDS = [7721705352, 7566152340]
+API_KEY = os.getenv("API_KEY", "AleppoMarket")
+
+DATABASE_URL = "sqlite:///bot_data.db"
+
+FLASK_SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "your_super_secret_flask_key_here")
+
+FLASK_PORT = 21155
+
+BOT_NAME = "aleppo market"
+
+SUPPORT_CHANNEL_LINK = "https://t.me/AleepoMarket"
+
+START_MESSAGE = "اهلا بك في ماركت حلب 🏰 "
+
+REFERRAL_BONUS_AMOUNT = 0.02
+REFERRAL_COUNT_FOR_BONUS = 50
+MIN_REFERRAL_WITHDRAWAL_AMOUNT = 1
+
+GROUP_ID = -1002785826840
+BACKUP_GROUB = -1002785826840
+PUSHBULLET_API_KEY = "o.4O8jZ9P5S5FfqapfN7Z6VnB7LGTBYgIS"
+
+WEBAPP_URL = None
