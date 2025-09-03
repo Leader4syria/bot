@@ -299,9 +299,9 @@
         // تهيئة Supabase
         const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s';
-        
+
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
+
         const gData = {
             user: null,
             orders: [],
@@ -346,19 +346,20 @@
 
         async function fetchInitialData(initData) {
             try {
-                // This function now fetches everything from Supabase as per the new requirement.
-                const telegramUserId = extractTelegramUserId(initData);
-                if (!telegramUserId) {
-                    throw new Error("Could not identify Telegram user.");
-                }
+                // Step 1: Fetch user balance and orders from local server
+                const localResponse = await fetch('/api/webapp/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: initData }),
+                });
+                if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
+                const localData = await localResponse.json();
+                if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
 
-                const { data: userData, error: userError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('telegram_id', telegramUserId)
-                    .single();
-                if (userError && userError.code !== 'PGRST116') throw userError;
+                gData.user = localData.user;
+                gData.orders = localData.orders;
 
+                // Step 2: Fetch categories and services from Supabase
                 const { data: categories, error: categoriesError } = await supabase
                     .from('categories')
                     .select('*')
@@ -371,12 +372,12 @@
                     .order('id');
                 if (servicesError) throw servicesError;
 
-                gData.user = userData || { id: telegramUserId, balance: 0, full_name: 'New User' };
                 gData.categories = categories || [];
                 gData.services = services || [];
-                
+
+                // Step 3: Render the app with combined data
                 renderApp();
-                
+
             } catch (error) {
                 console.error('Error fetching initial data:', error);
                 mainCategoriesSection.innerHTML = `<p class="text-center text-red-500">حدث خطأ أثناء تحميل البيانات.</p>`;
@@ -384,21 +385,6 @@
                 loader.style.display = 'none';
                 appContent.classList.remove('hidden');
                 appContent.classList.add('flex');
-            }
-        }
-
-        function extractTelegramUserId(initData) {
-            try {
-                const params = new URLSearchParams(initData);
-                const userStr = params.get('user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    return user.id;
-                }
-                return null;
-            } catch (e) {
-                console.error('Error parsing Telegram user data:', e);
-                return null;
             }
         }
 
@@ -585,42 +571,15 @@
             
             generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
             
-            // Robust params parsing
             let paramsData = [];
-            if (service.params && typeof service.params === 'string' && service.params.trim()) {
-                const trimmedParams = service.params.trim();
-                if (trimmedParams.startsWith('[') || trimmedParams.startsWith('{')) {
-                    try {
-                        paramsData = JSON.parse(trimmedParams);
-                    } catch (e) {
-                        console.error('Failed to parse service.params as JSON. Full Error:', e);
-                        paramsData = [trimmedParams]; // Fallback to treat as a single parameter
-                    }
-                } else {
-                    paramsData = [trimmedParams]; // Treat plain string as a single parameter
-                }
-            }
-
-            // Robust qty_values parsing
+            try {
+                if (service.params) paramsData = JSON.parse(service.params);
+            } catch (e) { console.error('Error parsing params:', e); }
+            
             let qtyValues = null;
-            if (service.qty_values) {
-                if (typeof service.qty_values === 'string' && service.qty_values.trim()) {
-                    const trimmedQty = service.qty_values.trim();
-                    if (trimmedQty.startsWith('[') || trimmedQty.startsWith('{')) {
-                        try {
-                            qtyValues = JSON.parse(trimmedQty);
-                        } catch (e) {
-                            console.error('Failed to parse service.qty_values as JSON. Full Error:', e);
-                            qtyValues = null;
-                        }
-                    } else {
-                        console.error('service.qty_values is a plain string, which is not supported:', trimmedQty);
-                        qtyValues = null;
-                    }
-                } else if (typeof service.qty_values === 'object') {
-                    qtyValues = service.qty_values;
-                }
-            }
+            try {
+                if (service.qty_values) qtyValues = JSON.parse(service.qty_values);
+            } catch (e) { console.error('Error parsing qty_values:', e); }
             
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
@@ -641,29 +600,25 @@
             }
             
             if (service.product_type === "package") {
-                let quantityHTML = '';
                 if (qtyValues) {
                     if (Array.isArray(qtyValues)) {
-                        quantityHTML = `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">`;
-                        qtyValues.forEach(value => { quantityHTML += `<option value="${value}">${value}</option>`; });
-                        quantityHTML += `</select></div>`;
+                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">`;
+                        qtyValues.forEach(value => { serviceDetailsHTML += `<option value="${value}">${value}</option>`; });
+                        serviceDetailsHTML += `</select></div>`;
                     } else if (typeof qtyValues === 'object' && qtyValues.min && qtyValues.max) {
-                        quantityHTML = `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label><input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
+                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label><input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
                     }
+                } else {
+                    serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
                 }
-                // Fallback if qty_values is not set for a package
-                if (!quantityHTML) {
-                     quantityHTML = `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
-                }
-                serviceDetailsHTML += quantityHTML;
-            } else { // product_type === "default" or undefined
+            } else {
                 serviceDetailsHTML += `<input type="hidden" id="quantity" value="1">`;
             }
             
             serviceDetailsHTML += `
                 <div class="w-full mb-4 p-3 bg-gray-100 rounded-lg">
                     <div class="flex justify-between items-center">
-                        <span class="text-lg font-semibold">السعر الإجمالي:</span>
+                        <span class="text-lg font-semibold">السعر:</span>
                         <span id="total-price" class="text-xl font-bold text-dark-green">$${basePrice.toFixed(2)}</span>
                     </div>
                 </div>
@@ -675,8 +630,6 @@
             if (quantityInput) {
                 quantityInput.addEventListener('change', calculateTotalPrice);
                 quantityInput.addEventListener('input', calculateTotalPrice);
-                // Initial calculation
-                calculateTotalPrice();
             }
             
             document.getElementById('confirm-purchase').addEventListener('click', confirmPurchase);
@@ -690,13 +643,9 @@
         function calculateTotalPrice() {
             const quantityInput = document.getElementById('quantity');
             const totalPriceElement = document.getElementById('total-price');
-            if (!totalPriceElement || !currentService) return;
+            if (!quantityInput || !totalPriceElement || !currentService) return;
             
-            let quantity = 1;
-            if(quantityInput) {
-                quantity = parseInt(quantityInput.value, 10) || 1;
-            }
-
+            const quantity = parseInt(quantityInput.value, 10) || 1;
             const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
@@ -707,22 +656,15 @@
             if (!currentService) return;
             
             const paramsData = [];
-            let paramsArray;
             try {
-                if (currentService.params && typeof currentService.params === 'string' && currentService.params.trim()) {
-                    const trimmedParams = currentService.params.trim();
-                    if (trimmedParams.startsWith('[') || trimmedParams.startsWith('{')) {
-                        paramsArray = JSON.parse(trimmedParams);
-                    } else {
-                        paramsArray = [trimmedParams];
-                    }
-
+                if (currentService.params) {
+                    const paramsArray = JSON.parse(currentService.params);
                     paramsArray.forEach((param, index) => {
                         const input = document.getElementById(`param-${index}`);
                         if (input && input.value.trim()) {
                             paramsData.push({ name: param, value: input.value.trim() });
                         } else {
-                            throw new Error(`الرجاء تعبئة حقل ${param}`);
+                            throw new Error(`Please fill out the ${param} field.`);
                         }
                     });
                 }
@@ -732,69 +674,40 @@
             }
             
             const quantityInput = document.getElementById('quantity');
-            const quantity = quantityInput ? (parseInt(quantityInput.value, 10) || 1) : 1;
+            const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
             const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
-            if (gData.user.balance < totalPrice) {
+            if (parseFloat(gData.user.balance) < totalPrice) {
                 alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
                 return;
             }
             
             try {
-                // Step 1: Create order in Supabase
-                const { data: newOrderData, error } = await supabase
-                    .from('orders')
-                    .insert([
-                        {
-                            user_id: gData.user.id,
-                            service_id: currentService.id,
-                            quantity: quantity,
-                            total_price: totalPrice,
-                            status: 'pending',
-                            params: paramsData.length > 0 ? JSON.stringify(paramsData) : null,
-                            created_at: new Date().toISOString()
-                        }
-                    ])
-                    .select()
-                    .single();
-
-                if (error) throw error;
-
-                // Step 2: Update user balance in Supabase
-                const newBalance = gData.user.balance - totalPrice;
-                const { error: updateError } = await supabase
-                    .from('users')
-                    .update({ balance: newBalance })
-                    .eq('telegram_id', gData.user.id);
-
-                if (updateError) throw updateError;
-
-                gData.user.balance = newBalance;
-                renderUserInfo();
-
-                // Step 3: Notify admin via local backend
-                fetch('/api/notify_admin_new_order', {
+                const response = await fetch('/api/create_order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        id: newOrderData.id,
-                        user_full_name: gData.user.full_name,
-                        user_id: gData.user.id,
-                        service_name: currentService.name,
+                        initData: gData.initData,
                         service_id: currentService.id,
                         quantity: quantity,
                         total_price: totalPrice,
-                        status: newOrderData.status,
-                        ordered_at: newOrderData.created_at
+                        params: paramsData
                     }),
-                }).catch(err => console.error('Failed to send notification:', err));
+                });
 
-                alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
-                renderServices(currentService.category_id);
+                const result = await response.json();
 
+                if (result.ok) {
+                    gData.user.balance = result.new_balance;
+                    renderUserInfo();
+                    alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
+                    renderServices(currentService.category_id);
+                } else {
+                    throw new Error(result.error || 'Failed to create order.');
+                }
             } catch (error) {
-                console.error('Error during purchase process:', error);
+                console.error('Error creating order:', error);
                 alert(`حدث خطأ أثناء تأكيد الطلب: ${error.message}`);
             }
         }
