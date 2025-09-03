@@ -6,6 +6,8 @@
     <title>واجهة خدمات ماركت حلب</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- إضافة مكتبة Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
@@ -294,6 +296,12 @@
     </div>
 
     <script>
+        // تهيئة Supabase
+        const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         const gData = {
             user: null,
             orders: [],
@@ -333,27 +341,43 @@
             const tg = window.Telegram.WebApp;
             tg.ready();
             gData.initData = tg.initData;
-            fetchInitialData(gData.initData);
+            fetchInitialData(tg.initData);
         });
 
         async function fetchInitialData(initData) {
             try {
-                const response = await fetch('/api/webapp/data', {
+                // Step 1: Fetch user balance and orders from local server
+                const localResponse = await fetch('/api/webapp/data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ initData: initData }),
                 });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const data = await response.json();
-                if (data.ok) {
-                    gData.user = data.user;
-                    gData.orders = data.orders;
-                    gData.categories = data.categories;
-                    gData.services = data.services;
-                    renderApp();
-                } else {
-                    throw new Error(data.error || 'Failed to fetch data.');
-                }
+                if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
+                const localData = await localResponse.json();
+                if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
+
+                gData.user = localData.user;
+                gData.orders = localData.orders;
+
+                // Step 2: Fetch categories and services from Supabase
+                const { data: categories, error: categoriesError } = await supabase
+                    .from('categories')
+                    .select('*')
+                    .order('id');
+                if (categoriesError) throw categoriesError;
+
+                const { data: services, error: servicesError } = await supabase
+                    .from('services')
+                    .select('*')
+                    .order('id');
+                if (servicesError) throw servicesError;
+
+                gData.categories = categories || [];
+                gData.services = services || [];
+
+                // Step 3: Render the app with combined data
+                renderApp();
+
             } catch (error) {
                 console.error('Error fetching initial data:', error);
                 mainCategoriesSection.innerHTML = `<p class="text-center text-red-500">حدث خطأ أثناء تحميل البيانات.</p>`;
@@ -514,7 +538,7 @@
                     serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
                     serviceElement.style.animationDelay = `${index * 0.1}s`;
                     
-                    const price = service.price;
+                    const price = service.base_price || service.price;
                     const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
                     
                     serviceElement.innerHTML = `
@@ -542,7 +566,7 @@
             
             currentService = service;
             
-            const basePrice = parseFloat(service.price);
+            const basePrice = parseFloat(service.base_price || service.price);
             const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
             
             generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
@@ -622,7 +646,7 @@
             if (!quantityInput || !totalPriceElement || !currentService) return;
             
             const quantity = parseInt(quantityInput.value, 10) || 1;
-            const basePrice = parseFloat(currentService.price);
+            const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
             totalPriceElement.textContent = `$${totalPrice.toFixed(2)}`;
@@ -651,7 +675,7 @@
             
             const quantityInput = document.getElementById('quantity');
             const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-            const basePrice = parseFloat(currentService.price);
+            const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
             if (parseFloat(gData.user.balance) < totalPrice) {
@@ -667,6 +691,7 @@
                         initData: gData.initData,
                         service_id: currentService.id,
                         quantity: quantity,
+                        total_price: totalPrice,
                         params: paramsData
                     }),
                 });

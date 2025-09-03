@@ -147,7 +147,7 @@ def get_webapp_data():
         try:
             user = s.query(User).filter_by(telegram_id=user_id).first()
             if not user:
-                # If user does not exist, create them
+                 # If user does not exist, create them
                 user = User(
                     telegram_id=user_id,
                     full_name=user_data.get('first_name', '') + ' ' + user_data.get('last_name', ''),
@@ -159,10 +159,8 @@ def get_webapp_data():
                 # Re-fetch user to get ID and other defaults
                 user = s.query(User).filter_by(telegram_id=user_id).first()
 
-            # Fetch all necessary data
+            # Fetch user and order data
             orders_q = s.query(Order).options(joinedload(Order.service)).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
-            categories = s.query(Category).order_by(Category.id).all()
-            services = s.query(Service).filter_by(is_available=True).order_by(Service.id).all()
 
             # Serialize data into a clean format for the frontend
             user_info = {
@@ -182,30 +180,10 @@ def get_webapp_data():
                 } for o in orders_q
             ]
 
-            categories_info = [
-                {"id": c.id, "name": c.name, "parent_id": c.parent_id, "category_img": c.category_img} for c in categories
-            ]
-
-            services_info = [
-                {
-                    "id": s.id,
-                    "name": s.name,
-                    "description": s.description,
-                    "price": f"{s.base_price:.2f}",
-                    "category_id": s.category_id,
-                    "params": s.params,
-                    "qty_values": s.qty_values,
-                    "product_type": s.product_type,
-                    "category_img": s.category_img
-                } for s in services
-            ]
-
             return jsonify({
                 "ok": True,
                 "user": user_info,
                 "orders": orders_info,
-                "categories": categories_info,
-                "services": services_info
             })
         finally:
             s.close()
@@ -216,7 +194,7 @@ def get_webapp_data():
 @app.route('/api/create_order', methods=['POST'])
 def create_order():
     """
-    API endpoint to create a new order.
+    API endpoint to create a new order in the local database.
     Authenticates the user, checks balance, creates order, and updates balance.
     """
     try:
@@ -233,9 +211,10 @@ def create_order():
         # Get order details from request
         service_id = request.json.get('service_id')
         quantity = request.json.get('quantity')
+        total_price = request.json.get('total_price')
         params_data = request.json.get('params')
 
-        if not all([service_id, quantity]):
+        if not all([service_id, quantity, total_price]):
              return jsonify({"ok": False, "error": "Missing order details"}), 400
 
         s = Session()
@@ -244,18 +223,16 @@ def create_order():
             if not user:
                 return jsonify({"ok": False, "error": "User not found"}), 404
 
-            service = s.query(Service).filter_by(id=service_id).first()
-            if not service:
-                return jsonify({"ok": False, "error": "Service not found"}), 404
+            # The service is from Supabase, so we can't query it here.
+            # We trust the client to send the correct price.
+            # A potential improvement would be to have a shared secret or a server-to-server call to verify the price.
 
-            total_price = service.base_price * int(quantity)
-
-            if user.balance < total_price:
+            if user.balance < float(total_price):
                 return jsonify({"ok": False, "error": "Insufficient balance"}), 400
 
             new_order = Order(
                 user_id=user.telegram_id,
-                service_id=service.id,
+                service_id=service_id, # This ID comes from Supabase
                 quantity=quantity,
                 total_price=total_price,
                 status='pending',
@@ -264,7 +241,7 @@ def create_order():
             )
             s.add(new_order)
 
-            user.balance -= total_price
+            user.balance -= float(total_price)
 
             s.commit()
 
