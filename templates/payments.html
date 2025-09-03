@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block title %}المدفوعات - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة المدفوعات{% endblock %}
+
+{% block content %}
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة المدفوعات</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>المستخدم (ID)</th>
+                    <th>المبلغ</th>
+                    <th>الطريقة</th>
+                    <th>الحالة</th>
+                    <th>معرف العملية</th>
+                    <th>تاريخ الدفع</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payments %}
+                <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <td>{{ payment.id }}</td>
+                    <td>{{ payment.user_id }} - ({{ payment.user.username or payment.user.full_name or 'N/A' }})</td>
+                    <td class="font-semibold text-blue-600">${{ "%.2f"|format(payment.amount) }}</td>
+                    <td>{{ payment.method }}</td>
+                    <td>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                            {% if payment.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                            {% elif payment.status == 'Completed' %}bg-green-100 text-green-800
+                            {% elif payment.status == 'Failed' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ payment.status }}
+                        </span>
+                    </td>
+                    <td>{{ payment.transaction_id or 'N/A' }}</td>
+                    <td>{{ payment.paid_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <form action="{{ url_for('admin_update_payment_status', payment_id=payment.id) }}" method="POST" class="flex items-center space-x-2 rtl:space-x-reverse">
+                            <select name="new_status" class="form-input w-28 text-sm">
+                                <option value="Pending" {% if payment.status == 'Pending' %}selected{% endif %}>معلق</option>
+                                <option value="Completed" {% if payment.status == 'Completed' %}selected{% endif %}>مكتمل</option>
+                                <option value="Failed" {% if payment.status == 'Failed' %}selected{% endif %}>فاشل</option>
+                            </select>
+                            <button type="submit" class="btn-primary text-sm py-2 px-3">تحديث</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

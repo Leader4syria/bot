@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block title %}بث الرسائل - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}بث الرسائل للمستخدمين{% endblock %}
+
+{% block content %}
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">إرسال رسالة جماعية</h2>
+    
+    <form action="{{ url_for('admin.admin_broadcast') }}" method="POST" id="broadcastForm" class="space-y-4">
+        <div>
+            <label for="message" class="block text-gray-700 text-sm font-bold mb-2">نص الرسالة:</label>
+            <textarea id="message" name="message" class="form-input h-32" placeholder="أدخل نص الرسالة هنا..." required></textarea>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="message_type" class="block text-gray-700 text-sm font-bold mb-2">نوع الرسالة:</label>
+                <select id="message_type" name="message_type" class="form-input">
+                    <option value="text">نص عادي</option>
+                    <option value="html">HTML (تنسيق متقدم)</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="user_filter" class="block text-gray-700 text-sm font-bold mb-2">تصفية المستخدمين:</label>
+                <select id="user_filter" name="user_filter" class="form-input">
+                    <option value="all">جميع المستخدمين</option>
+                    <option value="with_balance">المستخدمون برصيد إيجابي</option>
+                    <option value="with_orders">المستخدمون الذين قاموا بطلبات</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="mr-3">
+                    <p class="text-sm text-yellow-700">
+                        <b>تنبيه:</b> تأكد من صحة الرسالة قبل الإرسال. لا يمكن التراجع عن عملية البث.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn-primary w-full md:w-auto">
+            <i class="fas fa-paper-plane mr-2"></i> إرسال الرسالة
+        </button>
+    </form>
+    
+    <div class="mt-8">
+        <h3 class="text-xl font-bold mb-4 text-gray-800">نصائح للبث الفعال:</h3>
+        <ul class="list-disc mr-5 space-y-2 text-gray-700">
+            <li>استخدم HTML بحذر وتأكد من صحة الكود.</li>
+            <li>استهدف المستخدمين المناسبين باستخدام خيار التصفية.</li>
+            <li>اجعل رسالتك موجزة ومباشرة.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    document.getElementById('broadcastForm').addEventListener('submit', function(event) {
+        // منع الإرسال التلقائي
+        event.preventDefault();
+
+        // استخدام دالة التأكيد المخصصة
+        window.showCustomConfirm('هل أنت متأكد من إرسال هذه الرسالة إلى جميع المستخدمين المحددين؟', () => {
+            // إذا تم التأكيد، قم بإرسال النموذج
+            event.target.submit();
+        });
+    });
+</script>
+{% endblock %}

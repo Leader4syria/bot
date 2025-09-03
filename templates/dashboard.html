@@ -1,0 +1,156 @@
+{% extends "layout.html" %}
+
+{% block title %}لوحة تحكم المشرف{% endblock %}
+{% block page_title %}الرئيسية{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+    <div class="card flex items-center justify-between animate-fadeIn">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي المستخدمين</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_users }}</h3>
+        </div>
+        <i class="fas fa-users text-4xl text-blue-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-100">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي الخدمات</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_services }}</h3>
+        </div>
+        <i class="fas fa-box-open text-4xl text-green-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-200">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي الطلبات</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_orders }}</h3>
+        </div>
+        <i class="fas fa-shopping-cart text-4xl text-purple-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-300">
+        <div>
+            <p class="text-gray-500 text-sm">الطلبات المعلقة</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_pending_orders }}</h3>
+        </div>
+        <i class="fas fa-hourglass-half text-4xl text-yellow-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-400">
+        <div>
+            <p class="text-gray-500 text-sm">الطلبات المكتملة</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_completed_orders }}</h3>
+        </div>
+        <i class="fas fa-check-circle text-4xl text-teal-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-500">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي رصيد المستخدمين</p>
+            <h3 class="text-3xl font-bold text-gray-800">${{ "%.2f"|format(total_balance_sum) }}</h3>
+        </div>
+        <i class="fas fa-dollar-sign text-4xl text-indigo-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-600">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي رصيد الإحالة</p>
+            <h3 class="text-3xl font-bold text-gray-800">${{ "%.2f"|format(total_referral_balance_sum) }}</h3>
+        </div>
+        <i class="fas fa-hand-holding-usd text-4xl text-pink-400"></i>
+    </div>
+    <div class="card flex items-center justify-between animate-fadeIn delay-700">
+        <div>
+            <p class="text-gray-500 text-sm">طلبات السحب المعلقة</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_pending_withdrawals }}</h3>
+        </div>
+        <i class="fas fa-wallet text-4xl text-red-400"></i>
+    </div>
+    {# زر جديد للانتقال لصفحة السحوبات #}
+    <div class="card flex items-center justify-between animate-fadeIn delay-800">
+        <div>
+            <p class="text-gray-500 text-sm">إدارة السحوبات</p>
+            <h3 class="text-3xl font-bold text-gray-800">عرض طلبات السحب</h3>
+        </div>
+        <a href="{{ url_for('admin.admin_withdrawals') }}" class="text-blue-600 hover:underline">
+            <i class="fas fa-arrow-circle-right text-4xl text-blue-400"></i>
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card animate-fadeIn delay-800">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">أحدث الطلبات</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>المستخدم</th>
+                        <th>الخدمة</th>
+                        <th>الحالة</th>
+                        <th>التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order_item in orders %}
+                    <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                        <td>{{ order_item.id }}</td>
+                        <td>{{ order_item.user.username or order_item.user.full_name or 'N/A' }}</td>
+                        <td>{{ order_item.service.name }}</td>
+                        <td>
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                                {% if order_item.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                {% elif order_item.status == 'Completed' %}bg-green-100 text-green-800
+                                {% elif order_item.status == 'Failed' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ order_item.status }}
+                            </span>
+                        </td>
+                        <td>{{ order_item.ordered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('admin.admin_orders') }}" class="text-blue-600 hover:underline">عرض جميع الطلبات &rarr;</a>
+        </div>
+    </div>
+
+    <div class="card animate-fadeIn delay-900">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">أحدث المدفوعات</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>المستخدم</th>
+                        <th>المبلغ</th>
+                        <th>الحالة</th>
+                        <th>التاريخ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                        <td>{{ payment.id }}</td>
+                        <td>{{ payment.user.username or payment.user.full_name or 'N/A' if payment.user else 'N/A' }}</td>
+                        <td class="font-semibold text-blue-600">${{ "%.2f"|format(payment.amount) }}</td>
+                        <td>
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                                {% if payment.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                                {% elif payment.status == 'Completed' %}bg-green-100 text-green-800
+                                {% elif payment.status == 'Failed' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ payment.status }}
+                            </span>
+                        </td>
+                        <td>{{ payment.paid_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-4 text-center">
+            <!-- تم تعديل الرابط إلى admin_orders مؤقتًا حتى تنشئ admin_payments -->
+            <a href="{{ url_for('admin.admin_orders') }}" class="text-blue-600 hover:underline">عرض جميع المدفوعات &rarr;</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

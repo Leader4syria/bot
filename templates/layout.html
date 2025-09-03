@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}لوحة تحكم المشرف{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts - Tajawal -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* الخط الأساسي Tajawal */
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f0f2f5; /* لون خلفية فاتح وناعم */
+            color: #333;
+        }
+
+        /* رسائل الفلاش */
+        .flash-message {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.75rem; /* حواف أكثر استدارة */
+            font-weight: 500;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* ظل خفيف */
+            animation: fadeIn 0.5s ease-out; /* تأثير ظهور */
+        }
+        .flash-message.success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .flash-message.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* البطاقات */
+        .card {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e2e8f0;
+        }
+
+        /* حقول الإدخال */
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e0;
+            background-color: #f8fafc;
+            transition: all 0.2s ease-in-out;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+
+        /* الأزرار الأساسية */
+        .btn-primary {
+            background-color: #3b82f6;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* الأزرار الثانوية */
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #4a5568;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .btn-secondary:hover {
+            background-color: #cbd5e0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(203, 213, 224, 0.5);
+        }
+
+        /* أزرار الحذف */
+        .btn-danger {
+            background-color: #ef4444;
+            color: #fff;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+        }
+
+        /* تأثيرات الدخول */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .delay-100 { animation-delay: 0.1s; }
+        .delay-200 { animation-delay: 0.2s; }
+        .delay-300 { animation-delay: 0.3s; }
+        
+        /* تخصيص الجدول */
+        th, td {
+            padding: 1rem;
+            text-align: right;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            background-color: #f8fafc;
+            font-weight: 600;
+            color: #4a5568;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+        
+        /* تعديلات على شريط التنقل */
+        .sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 1023px) {
+            .sidebar.translate-x-full {
+                transform: translateX(100%);
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="flex h-screen bg-gray-100">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="bg-gray-800 text-gray-100 w-64 space-y-6 py-7 px-2 absolute inset-y-0 right-0 transform translate-x-full lg:relative lg:translate-x-0 transition duration-300 ease-in-out z-50">
+            <a href="{{ url_for('admin.admin_dashboard') }}" class="text-white flex items-center px-4 space-x-2 rtl:space-x-reverse">
+                <i class="fas fa-tools text-2xl"></i>
+                <span class="text-2xl font-extrabold">لوحة المشرف</span>
+            </a>
+            <nav>
+                <a href="{{ url_for('admin.admin_dashboard') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'الرئيسية' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-home mr-2"></i> الرئيسية
+                </a>
+                <a href="{{ url_for('admin.admin_users') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'إدارة المستخدمين' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-users mr-2"></i> المستخدمون
+                </a>
+                <a href="{{ url_for('admin.admin_services') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'إدارة الخدمات' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-box-open mr-2"></i> الخدمات
+                </a>
+                <a href="{{ url_for('admin.admin_categories') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'إدارة التصنيفات' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-folder-open mr-2"></i> التصنيفات
+                </a>
+                <!-- رابط جديد لإدارة Service Mappings -->
+                <a href="{{ url_for('admin.admin_service_mappings') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'إدارة Service Mappings' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-link mr-2"></i> Service Mappings
+                </a>
+                <!-- إضافة روابط جديدة لإرسال الرسائل -->
+                <a href="{{ url_for('admin.admin_broadcast') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'بث الرسائل للمستخدمين' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-bullhorn mr-2"></i> بث الرسائل
+                </a>
+                <a href="{{ url_for('admin.admin_send_to_user') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'إرسال رسالة لمستخدم معين' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-paper-plane mr-2"></i> إرسال لمستخدم
+                </a>
+                <!-- إضافة رابط الإحصائيات الشاملة -->
+                <a href="{{ url_for('admin.comprehensive_stats') }}" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700 hover:text-white {% if page_title == 'الإحصائيات الشاملة' %}bg-gray-700 text-white{% endif %}">
+                    <i class="fas fa-chart-bar mr-2"></i> الإحصائيات الشاملة
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="flex justify-between items-center py-4 px-6 bg-white border-b border-gray-200">
+                <button id="sidebar-toggle" class="text-gray-500 hover:text-gray-700 lg:hidden">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div class="text-xl font-bold text-gray-800">{% block page_title %}{% endblock %}</div>
+                <a href="{{ url_for('admin.admin_logout') }}" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                </a>
+            </header>
+
+            <!-- Main Content Area -->
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages-container mb-6">
+                    {% for category, message in messages %}
+                    <div class="flash-message {% if category == 'success' %}success{% elif category == 'error' %}error{% endif %}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggle = document.getElementById('sidebar-toggle');
+
+            sidebarToggle.addEventListener('click', function() {
+                sidebar.classList.toggle('translate-x-full');
+            });
+
+            // دالة تأكيد مخصصة لتحل محل confirm()
+            window.showCustomConfirm = function showCustomConfirm(message, onConfirm) {
+                // إنشاء عنصر المودال
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn';
+                modal.innerHTML = `
+                    <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center transform scale-95 transition-transform duration-300 ease-out">
+                        <h3 class="text-xl font-bold mb-4 text-gray-800">تأكيد الإجراء</h3>
+                        <p class="text-gray-700 mb-6">${message}</p>
+                        <div class="flex justify-center space-x-4 rtl:space-x-reverse">
+                            <button id="confirm-cancel" class="btn-secondary px-6 py-2">إلغاء</button>
+                            <button id="confirm-ok" class="btn-danger px-6 py-2">تأكيد</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+
+                // إضافة مستمعي الأحداث للأزرار
+                document.getElementById('confirm-cancel').addEventListener('click', () => {
+                    modal.remove();
+                });
+                document.getElementById('confirm-ok').addEventListener('click', () => {
+                    onConfirm();
+                    modal.remove();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

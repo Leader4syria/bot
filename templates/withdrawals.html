@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block title %}طلبات السحب - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة طلبات السحب{% endblock %}
+
+{% block content %}
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة طلبات السحب</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>المستخدم (ID)</th>
+                    <th>المبلغ</th>
+                    <th>معلومات الدفع</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الطلب</th>
+                    <th>تاريخ المعالجة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for withdrawal in withdrawals %}
+                <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <td>{{ withdrawal.id }}</td>
+                    <td>{{ withdrawal.user_id }} - ({{ withdrawal.user.username or withdrawal.user.full_name or 'N/A' }})</td>
+                    <td class="font-semibold text-blue-600">${{ "%.2f"|format(withdrawal.amount) }}</td>
+                    <td>{{ withdrawal.payment_method_info }}</td>
+                    <td>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                            {% if withdrawal.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                            {% elif withdrawal.status == 'Approved' %}bg-green-100 text-green-800
+                            {% elif withdrawal.status == 'Rejected' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ withdrawal.status }}
+                        </span>
+                    </td>
+                    <td>{{ withdrawal.requested_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ withdrawal.processed_at.strftime('%Y-%m-%d %H:%M') if withdrawal.processed_at else 'N/A' }}</td>
+                    <td>
+                        <form action="{{ url_for('admin_update_withdrawal_status', withdrawal_id=withdrawal.id) }}" method="POST" class="flex items-center space-x-2 rtl:space-x-reverse">
+                            <select name="new_status" class="form-input w-28 text-sm">
+                                <option value="Pending" {% if withdrawal.status == 'Pending' %}selected{% endif %}>معلق</option>
+                                <option value="Approved" {% if withdrawal.status == 'Approved' %}selected{% endif %}>موافق عليه</option>
+                                <option value="Rejected" {% if withdrawal.status == 'Rejected' %}selected{% endif %}>مرفوض</option>
+                            </select>
+                            <button type="submit" class="btn-primary text-sm py-2 px-3">تحديث</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

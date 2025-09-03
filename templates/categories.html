@@ -1,0 +1,152 @@
+{% extends "layout.html" %}
+
+{% block title %}التصنيفات - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة التصنيفات{% endblock %}
+
+{% block content %}
+<div class="card mb-6 animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">إضافة تصنيف جديد</h2>
+    <form action="{{ url_for('admin.admin_add_category') }}" method="POST" class="space-y-4">
+        {# إضافة حقل csrf_token إلى النموذج #}
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label for="name" class="block text-gray-700 text-sm font-bold mb-2">اسم التصنيف:</label>
+            <input type="text" id="name" name="name" class="form-input" placeholder="مثال: خدمات انستجرام" required>
+        </div>
+        <div>
+            <label for="parent_id" class="block text-gray-700 text-sm font-bold mb-2">التصنيف الأب (اختياري):</label>
+            <select id="parent_id" name="parent_id" class="form-input">
+                <option value="None">-- لا يوجد (تصنيف رئيسي) --</option>
+                {# استخدام all_categories بدلاً من main_categories للسماح بالتصنيفات المتداخلة #}
+                {% for cat in all_categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn-primary w-full md:w-auto">إضافة تصنيف</button>
+    </form>
+</div>
+
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة التصنيفات</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>اسم التصنيف</th>
+                    <th>التصنيف الأب</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in all_categories %}
+                <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <td>{{ category.id }}</td>
+                    <td>{{ category.name }}</td>
+                    <td>
+                        {{ category.parent.name if category.parent else '-- رئيسي --' }}
+                    </td>
+                    <td class="flex items-center space-x-2 rtl:space-x-reverse">
+                        <button type="button" class="btn-secondary text-xs" onclick="openEditModal('{{ category.id }}', '{{ category.name }}', '{{ category.parent_id or 'None' }}')">
+                            <i class="fas fa-edit"></i> تعديل
+                        </button>
+                        <form id="deleteForm-{{ category.id }}" action="{{ url_for('admin.admin_delete_category', category_id=category.id) }}" method="POST">
+                            {# إضافة حقل csrf_token لنموذج الحذف #}
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="button" class="btn-danger text-xs" onclick="confirmDelete('{{ category.id }}')">
+                                <i class="fas fa-trash-alt"></i> حذف
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal تعديل التصنيف -->
+<div id="editCategoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+            <h3 class="text-xl font-semibold">تعديل التصنيف</h3>
+            <button class="text-gray-400 hover:text-gray-600" onclick="closeEditModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="editCategoryForm" action="" method="POST" class="space-y-4">
+            {# إضافة حقل csrf_token لنموذج التعديل #}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <div>
+                <label for="edit-name" class="block text-gray-700 text-sm font-bold mb-2">اسم التصنيف:</label>
+                <input type="text" id="edit-name" name="name" class="form-input" required>
+            </div>
+            <div>
+                <label for="edit-parent-id" class="block text-gray-700 text-sm font-bold mb-2">التصنيف الأب (اختياري):</label>
+                <select id="edit-parent-id" name="parent_id" class="form-input">
+                    <option value="None">-- لا يوجد (تصنيف رئيسي) --</option>
+                    {% for cat in all_categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-primary w-full md:w-auto">تعديل التصنيف</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    // استخدم هذه الدالة لعرض نافذة تأكيد مخصصة
+    function showCustomConfirm(message, onConfirm) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">تأكيد</h3>
+                    <button class="text-gray-400 hover:text-gray-600" onclick="modal.remove()">&times;</button>
+                </div>
+                <p class="text-gray-700 mb-4">${message}</p>
+                <div class="flex justify-end space-x-2 rtl:space-x-reverse">
+                    <button class="btn-secondary" onclick="modal.remove()">إلغاء</button>
+                    <button class="btn-danger" onclick="onConfirm(); modal.remove();">تأكيد الحذف</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        // Ensure the confirm button works
+        modal.querySelector('.btn-danger').onclick = onConfirm;
+    }
+
+    function openEditModal(id, name, parentId) {
+        const modal = document.getElementById('editCategoryModal');
+        const form = document.getElementById('editCategoryForm');
+
+        // Update the form action path based on the category ID
+        form.action = `/admin/categories/edit/${id}`;
+
+        // Fill the form fields with the current category data
+        document.getElementById('edit-name').value = name;
+        document.getElementById('edit-parent-id').value = parentId;
+
+        // Show the modal
+        modal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        // Hide the modal
+        document.getElementById('editCategoryModal').classList.add('hidden');
+    }
+
+    function confirmDelete(categoryId) {
+        showCustomConfirm(
+            'هل أنت متأكد من حذف هذا التصنيف وجميع خدماته وتصنيفاته الفرعية؟', 
+            () => {
+                // If the user confirms, submit the form
+                document.getElementById(`deleteForm-${categoryId}`).submit();
+            }
+        );
+    }
+</script>
+{% endblock %}

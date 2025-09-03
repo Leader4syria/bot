@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>واجهة خدمات ماركت حلب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- إضافة مكتبة Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Kufi Arabic', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #f3f4f6;
+        }
+
+        :root {
+            --color-dark-green: #064E3B;
+            --color-light-green: #ECFDF5;
+        }
+
+        .bg-dark-green { background-color: var(--color-dark-green); }
+        .text-dark-green { color: var(--color-dark-green); }
+
+        .category-card {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            min-height: 12rem;
+        }
+        .category-card-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, rgba(6, 78, 59, 0.7), transparent);
+            border-radius: 1rem;
+            z-index: 1;
+        }
+        .category-card-content {
+            position: relative;
+            z-index: 2;
+            padding: 1rem;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .category-scroll {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .category-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        #loader {
+            border: 5px solid #E5E7EB;
+            border-top: 5px solid var(--color-dark-green);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            margin-left: -25px;
+            margin-top: -25px;
+            z-index: 50;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* تصحيح لعرض 3 عناصر في الصف على الشاشات المتوسطة والكبيرة */
+        @media (min-width: 768px) {
+            .grid-cols-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .md\:grid-cols-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        
+        /* أنماط إضافية لصفحة الشراء */
+        .quantity-input {
+            width: 60px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .quantity-btn {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .quantity-btn:hover {
+            background-color: #e0e0e0;
+        }
+        .service-details-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+        
+        /* أنماط إضافية للأزرار في specificPackage */
+        .quantity-option-btn {
+            transition: all 0.3s ease;
+        }
+        .quantity-option-btn.selected {
+            background-color: var(--color-dark-green);
+            color: white;
+        }
+        
+        /* أنماط جديدة للمسار (breadcrumb) */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .breadcrumb-item {
+            display: flex;
+            align-items: center;
+        }
+        .breadcrumb-item:not(:last-child)::after {
+            content: "/";
+            margin: 0 0.5rem;
+            color: #6b7280;
+        }
+        .breadcrumb-link {
+            color: var(--color-dark-green);
+            cursor: pointer;
+        }
+        .breadcrumb-link:hover {
+            text-decoration: underline;
+        }
+        .breadcrumb-current {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div id="loader"></div>
+
+    <div id="app-content" class="min-h-screen flex flex-col bg-white shadow-lg rounded-2xl hidden">
+
+        <header class="p-5">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center">
+                    <h1 class="text-3xl font-bold text-dark-green tracking-wide">
+                        <span class="flex items-center">
+                            <span class="ml-2">ماركت حلب</span>
+                            <svg class="w-6 h-6 fill-current text-dark-green" viewBox="0 0 24 24">
+                                <path d="M12 2L6 5V9H18V5L12 2ZM6 11V22H18V11H6ZM10 13H14V15H10V13ZM10 17H14V19H10V17Z"/>
+                            </svg>
+                        </span>
+                    </h1>
+                </div>
+            </div>
+            <div class="relative">
+                <input type="text" placeholder="ابحث عن منتج أو خدمة..." class="w-full pr-12 pl-4 py-3 rounded-full bg-gray-200 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-dark-green transition duration-300">
+                <svg class="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <div id="user-info" class="flex items-center justify-between mt-4">
+                <p id="user-fullname" class="text-sm font-semibold text-gray-700">معرف المستخدم: <span id="user-id-display">...</span></p>
+                <div class="flex items-center space-x-2 space-x-reverse">
+                    <span id="user-balance" class="text-lg font-bold text-dark-green">$0.00</span>
+                    <svg class="w-5 h-5 text-yellow-500 fill-current" viewBox="0 0 24 24">
+                        <path d="M18 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 18H6V4h12v16zM15 13H9c-.55 0-1-.45-1-1s.45-1 1-1h6c.55 0 1 .45 1 1s-.45 1-1 1zm-3-3c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zM15 15H9c-.55 0-1-.45-1-1s.45-1 1-1h6c.55 0 1 .45 1 1s-.45 1-1 1z"/>
+                    </svg>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-4 pb-20">
+            <div id="main-categories-section">
+                <h2 class="text-xl font-bold text-dark-green mb-4">التصنيفات الرئيسية</h2>
+                <div id="main-categories" class="grid grid-cols-2 gap-4"></div>
+            </div>
+            
+            <div id="sub-categories-section" class="hidden">
+                <button id="back-to-home" class="mb-4 flex items-center text-dark-green font-semibold">
+                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    العودة
+                </button>
+                
+                <!-- مسار التصفح (Breadcrumb) -->
+                <div id="breadcrumb" class="breadcrumb mb-4"></div>
+                
+                <h2 id="subcategories-title" class="text-xl font-bold mb-4 text-dark-green"></h2>
+                <div id="sub-categories" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+            </div>
+            
+            <div id="services-section" class="hidden">
+                <button id="back-to-subcategories" class="mb-4 flex items-center text-dark-green font-semibold">
+                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    العودة
+                </button>
+                
+                <!-- مسار التصفح (Breadcrumb) -->
+                <div id="breadcrumb-services" class="breadcrumb mb-4"></div>
+                
+                <h2 id="products-title" class="text-xl font-bold mb-4 text-dark-green"></h2>
+                <div id="services" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+            
+            <!-- قسم جديد لعرض تفاصيل الخدمة وصفحة الشراء -->
+            <div id="service-details-section" class="hidden">
+                <button id="back-to-services" class="mb-4 flex items-center text-dark-green font-semibold">
+                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                    العودة
+                </button>
+                
+                <!-- مسار التصفح (Breadcrumb) -->
+                <div id="breadcrumb-details" class="breadcrumb mb-4"></div>
+                
+                <div id="service-details" class="bg-white rounded-xl shadow-lg p-4">
+                    <!-- سيتم ملء محتوى الخدمة هنا ديناميكيًا -->
+                </div>
+            </div>
+        </main>
+
+        <div class="fixed bottom-0 left-0 w-full bg-dark-green rounded-t-3xl shadow-lg p-4 z-50">
+            <nav class="flex justify-around items-center text-white">
+                <a href="./pyments.html" class="flex flex-col items-center text-center text-light-green hover:text-white transition-colors duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                        <path d="M12 14h.01"></path>
+                        <path d="M16 14h.01"></path>
+                        <path d="M8 14h.01"></path>
+                    </svg>
+                    <span class="text-sm">إضافة رصيد</span>
+                </a>
+                <a href="./services.html" class="flex flex-col items-center text-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span class="text-sm">الخدمات</span>
+                </a>
+                <a href="./wallet.html" class="flex flex-col items-center text-center text-light-green hover:text-white transition-colors duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 2a2 2 0 00-2 2v2H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2h-3V4a2 2 0 00-2-2h-4zM8 4a1 1 0 011-1h6a1 1 0 011 1v2H8V4zm11 8H5v-2h14v2z" />
+                    </svg>
+                    <span class="text-sm">محفظتي</span>
+                </a>
+                <a href="./orders.html" class="flex flex-col items-center text-center text-light-green hover:text-white transition-colors duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2m-2 4l-2-2m0 0l-2 2m2-2v7m-4 1h8a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-sm">طلباتي</span>
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    <script>
+        // تهيئة Supabase
+        const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co'; // استبدل برابط Supabase الخاص بك
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s'; // استبدل بمفتاح Supabase الخاص بك
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const gData = {
+            user: null,
+            orders: [],
+            categories: [],
+            services: [],
+            // إضافة مسار التصفح
+            breadcrumb: []
+        };
+
+        const loader = document.getElementById('loader');
+        const appContent = document.getElementById('app-content');
+        const mainCategoriesSection = document.getElementById('main-categories-section');
+        const userBalanceEl = document.getElementById('user-balance');
+        const userIdDisplayEl = document.getElementById('user-id-display');
+        const mainCategoriesContainer = document.getElementById('main-categories');
+        const subCategoriesSection = document.getElementById('sub-categories-section');
+        const subCategoriesTitle = document.getElementById('subcategories-title');
+        const subCategoriesContainer = document.getElementById('sub-categories');
+        const servicesSection = document.getElementById('services-section');
+        const servicesTitle = document.getElementById('products-title');
+        const servicesContainer = document.getElementById('services');
+        const backToHomeBtn = document.getElementById('back-to-home');
+        const backToSubcategoriesBtn = document.getElementById('back-to-subcategories');
+        
+        // عناصر جديدة لصفحة تفاصيل الخدمة
+        const serviceDetailsSection = document.getElementById('service-details-section');
+        const serviceDetailsContainer = document.getElementById('service-details');
+        const backToServicesBtn = document.getElementById('back-to-services');
+        
+        // عناصر جديدة للمسار (breadcrumb)
+        const breadcrumbContainer = document.getElementById('breadcrumb');
+        const breadcrumbServicesContainer = document.getElementById('breadcrumb-services');
+        const breadcrumbDetailsContainer = document.getElementById('breadcrumb-details');
+        
+        let currentParentId = null;
+        let currentService = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            fetchInitialData(tg.initData);
+        });
+
+        async function fetchInitialData(initData) {
+            try {
+                // استخراج معرف المستخدم من بيانات Telegram
+                const telegramUserId = extractTelegramUserId(initData);
+                
+                // جلب بيانات المستخدم أولاً
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('telegram_id', telegramUserId)
+                    .single();
+                
+                if (userError && userError.code !== 'PGRST116') {
+                    // PGRST116 هو خطأ "لا توجد نتائج"، نتجاهله ونستخدم بيانات افتراضية
+                    console.warn('User not found, using default data');
+                }
+                
+                // جلب التصنيفات من Supabase
+                const { data: categories, error: categoriesError } = await supabase
+                    .from('categories')
+                    .select('*')
+                    .order('id');
+                
+                if (categoriesError) throw categoriesError;
+                
+                // جلب الخدمات من Supabase
+                const { data: services, error: servicesError } = await supabase
+                    .from('services')
+                    .select('*')
+                    .order('id');
+                
+                if (servicesError) throw servicesError;
+                
+                // جلب الطلبات الخاصة بالمستخدم
+                const { data: ordersData, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('user_id', telegramUserId);
+                
+                if (ordersError) console.error('Error fetching orders:', ordersError);
+                
+                // تعبئة البيانات في gData
+                gData.user = userData || {
+                    id: telegramUserId,
+                    balance: 0,
+                    username: 'مستخدم'
+                };
+                
+                gData.orders = ordersData || [];
+                gData.categories = categories || [];
+                gData.services = services || [];
+                
+                renderApp();
+                
+            } catch (error) {
+                console.error('Error fetching initial data:', error);
+                mainCategoriesSection.innerHTML = `
+                    <div class="text-center text-red-500 p-4 bg-red-100 rounded-lg">
+                        <p class="font-bold">حدث خطأ أثناء تحميل البيانات.</p>
+                        <p class="mt-2 text-sm">التفاصيل:</p>
+                        <pre class="mt-1 text-xs text-left bg-gray-100 p-2 rounded text-red-700 whitespace-pre-wrap">${error.message}</pre>
+                    </div>
+                `;
+            } finally {
+                loader.style.display = 'none';
+                appContent.classList.remove('hidden');
+                appContent.classList.add('flex');
+            }
+        }
+
+        // دالة لاستخراج معرف المستخدم من بيانات Telegram
+        function extractTelegramUserId(initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userStr = params.get('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    return user.id;
+                }
+                return 'unknown';
+            } catch (e) {
+                console.error('Error parsing Telegram user data:', e);
+                return 'unknown';
+            }
+        }
+
+        // دالة للحصول على صورة التصنيف الفرعي من الخدمات المرتبطة به
+        function getSubCategoryImage(categoryId) {
+            // البحث عن أول خدمة مرتبطة بهذا التصنيف
+            const service = gData.services.find(s => s.category_id === categoryId && s.category_img);
+            
+            // إذا وجدت خدمة بها صورة، نستخدمها
+            if (service && service.category_img) {
+                return service.category_img;
+            }
+            
+            // إذا لم توجد صورة، نستخدم صورة افتراضية
+            const category = gData.categories.find(c => c.id === categoryId);
+            return `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(category?.name || 'تصنيف')}`;
+        }
+
+        // دالة لإنشاء مسار التصفح (Breadcrumb)
+        function generateBreadcrumb(categoryId, container) {
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            // إضافة الرابط الرئيسي
+            const homeItem = document.createElement('div');
+            homeItem.className = 'breadcrumb-item';
+            homeItem.innerHTML = `<span class="breadcrumb-link" data-category-id="home">الرئيسية</span>`;
+            container.appendChild(homeItem);
+            
+            // إذا كان هناك معرف تصنيف، نبحث عن مساره
+            if (categoryId) {
+                const path = getCategoryPath(categoryId);
+                
+                path.forEach((cat, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'breadcrumb-item';
+                    
+                    if (index === path.length - 1) {
+                        // آخر عنصر في المسار (لا يكون رابطاً)
+                        item.innerHTML = `<span class="breadcrumb-current">${cat.name}</span>`;
+                    } else {
+                        // عنصر وسطي (يكون رابطاً)
+                        item.innerHTML = `<span class="breadcrumb-link" data-category-id="${cat.id}">${cat.name}</span>`;
+                    }
+                    
+                    container.appendChild(item);
+                });
+            }
+            
+            // إضافة مستمعي الأحداث للروابط
+            const breadcrumbLinks = container.querySelectorAll('.breadcrumb-link');
+            breadcrumbLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const catId = link.getAttribute('data-category-id');
+                    if (catId === 'home') {
+                        renderMainCategories();
+                    } else {
+                        renderSubCategories(parseInt(catId, 10));
+                    }
+                });
+            });
+        }
+
+        // دالة للحصول على المسار الكامل للتصنيف
+        function getCategoryPath(categoryId) {
+            const path = [];
+            let currentId = categoryId;
+            
+            while (currentId) {
+                const category = gData.categories.find(c => c.id === currentId);
+                if (category) {
+                    path.unshift(category); // إضافة في البداية للحفاظ على الترتيب
+                    currentId = category.parent_id;
+                } else {
+                    break;
+                }
+            }
+            
+            return path;
+        }
+
+        function renderApp() {
+            renderUserInfo();
+            renderMainCategories();
+        }
+
+        function renderUserInfo() {
+            if (gData.user) {
+                userBalanceEl.textContent = `$${gData.user.balance || 0}`;
+                userIdDisplayEl.textContent = gData.user.id;
+            }
+        }
+
+        function renderMainCategories() {
+            mainCategoriesContainer.innerHTML = '';
+            subCategoriesSection.classList.add('hidden');
+            servicesSection.classList.add('hidden');
+            serviceDetailsSection.classList.add('hidden');
+            
+            // مسح مسار التصفح
+            gData.breadcrumb = [];
+            
+            const mainCategories = gData.categories.filter(c => c.parent_id === null);
+            mainCategories.forEach(cat => {
+                const catElement = document.createElement('a');
+                catElement.href = '#';
+                catElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+                // استخدام الصورة من قاعدة البيانات إذا كانت متاحة
+                const bgImage = cat.category_img || `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(cat.name)}`;
+                catElement.style.backgroundImage = `url('${bgImage}')`;
+                catElement.dataset.categoryId = cat.id;
+                catElement.innerHTML = `
+                    <div class="category-card-overlay rounded-2xl"></div>
+                    <div class="category-card-content">
+                        <h3 class="text-xl font-bold">${cat.name}</h3>
+                    </div>
+                `;
+                mainCategoriesContainer.appendChild(catElement);
+            });
+        }
+
+        function renderSubCategories(parentId) {
+            currentParentId = parentId;
+            subCategoriesContainer.innerHTML = '';
+            
+            const parentCategory = gData.categories.find(c => c.id === parentId);
+            subCategoriesTitle.textContent = parentCategory?.name || 'التصنيفات الفرعية';
+            
+            // إنشاء مسار التصفح
+            generateBreadcrumb(parentId, breadcrumbContainer);
+            
+            const subCategories = gData.categories.filter(c => c.parent_id === parentId);
+
+            if (subCategories.length > 0) {
+                subCategories.forEach(cat => {
+                    // إنشاء بطاقة التصنيف الفرعي بنفس نمط التصنيفات الرئيسية
+                    const subCatElement = document.createElement('a');
+                    subCatElement.href = '#';
+                    subCatElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+                    
+                    // استخدام صورة من الخدمات المرتبطة بهذا التصنيف
+                    const bgImage = getSubCategoryImage(cat.id);
+                    subCatElement.style.backgroundImage = `url('${bgImage}')`;
+                    subCatElement.dataset.categoryId = cat.id;
+                    subCatElement.innerHTML = `
+                        <div class="category-card-overlay rounded-2xl"></div>
+                        <div class="category-card-content">
+                            <h3 class="text-xl font-bold">${cat.name}</h3>
+                        </div>
+                    `;
+                    subCategoriesContainer.appendChild(subCatElement);
+                });
+                mainCategoriesSection.classList.add('hidden');
+                subCategoriesSection.classList.remove('hidden');
+                servicesSection.classList.add('hidden');
+                serviceDetailsSection.classList.add('hidden');
+            } else {
+                renderServices(parentId);
+            }
+        }
+
+        function renderServices(categoryId) {
+            servicesContainer.innerHTML = '';
+            const category = gData.categories.find(c => c.id === categoryId);
+            servicesTitle.textContent = category?.name || 'الخدمات';
+            
+            // إنشاء مسار التصفح للخدمات
+            generateBreadcrumb(categoryId, breadcrumbServicesContainer);
+            
+            const services = gData.services.filter(s => s.category_id === categoryId && s.available !== false);
+
+            if (services.length > 0) {
+                services.forEach((service, index) => {
+                    const serviceElement = document.createElement('div');
+                    serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
+                    serviceElement.style.animationDelay = `${index * 0.1}s`;
+                    
+                    // استخدام السعر المناسب (السعر الأساسي أو السعر العادي)
+                    const price = service.base_price || service.price;
+                    
+                    // استخدام صورة الخدمة من قاعدة البيانات إذا كانت متاحة
+                    const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
+                    
+                    serviceElement.innerHTML = `
+                        <img src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
+                        <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
+                        <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
+                        <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
+                        <button class="service-details-btn mt-4 w-full py-2 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300" data-service-id="${service.id}">اطلب الآن</button>
+                    `;
+                    servicesContainer.appendChild(serviceElement);
+                    setTimeout(() => serviceElement.classList.add('fade-in'), 10);
+                });
+                mainCategoriesSection.classList.add('hidden');
+                subCategoriesSection.classList.add('hidden');
+                servicesSection.classList.remove('hidden');
+                serviceDetailsSection.classList.add('hidden');
+            } else {
+                servicesContainer.innerHTML = '<p class="text-center col-span-1 md:col-span-2">لا توجد خدمات في هذا التصنيف.</p>';
+                mainCategoriesSection.classList.add('hidden');
+                subCategoriesSection.classList.add('hidden');
+                servicesSection.classList.remove('hidden');
+                serviceDetailsSection.classList.add('hidden');
+            }
+        }
+
+        // دالة لعرض تفاصيل الخدمة وصفحة الشراء
+        function renderServiceDetails(serviceId) {
+            // البحث عن الخدمة المحددة
+            const service = gData.services.find(s => s.id == serviceId);
+            if (!service) return;
+            
+            currentService = service;
+            
+            // استخدام السعر الأساسي
+            const basePrice = service.base_price || service.price;
+            
+            // استخدام صورة الخدمة من قاعدة البيانات إذا كانت متاحة
+            const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
+            
+            // إنشاء مسار التصفح لتفاصيل الخدمة
+            generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
+            
+            // تحليل params إذا كانت موجودة
+            let paramsData = [];
+            try {
+                if (service.params) {
+                    paramsData = JSON.parse(service.params);
+                }
+            } catch (e) {
+                console.error('Error parsing params:', e);
+            }
+            
+            // تحليل qty_values إذا كانت موجودة
+            let qtyValues = null;
+            try {
+                if (service.qty_values) {
+                    qtyValues = JSON.parse(service.qty_values);
+                }
+            } catch (e) {
+                console.error('Error parsing qty_values:', e);
+            }
+            
+            // بناء واجهة تفاصيل الخدمة
+            let serviceDetailsHTML = `
+                <div class="flex flex-col items-center">
+                    <img src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
+                    <h2 class="text-2xl font-bold text-dark-green mb-2">${service.name}</h2>
+                    <p class="text-gray-600 mb-4">${service.description || ''}</p>
+                    
+                    <!-- عرض حقول الإدخال إذا كان هناك params -->
+            `;
+            
+            // إضافة حقول الإدخال بناءً على params
+            if (paramsData && paramsData.length > 0) {
+                serviceDetailsHTML += `<div class="w-full mb-4 space-y-3">`;
+                serviceDetailsHTML += `<h3 class="text-lg font-semibold text-dark-green">المعلومات المطلوبة:</h3>`;
+                
+                paramsData.forEach((param, index) => {
+                    serviceDetailsHTML += `
+                        <div>
+                            <label for="param-${index}" class="block text-sm font-medium text-gray-700 mb-1">${param}</label>
+                            <input type="text" id="param-${index}" class="w-full p-2 border border-gray-300 rounded-md" placeholder="أدخل ${param}" required>
+                        </div>
+                    `;
+                });
+                
+                serviceDetailsHTML += `</div>`;
+            }
+            
+            // معالجة أنواع المنتجات المختلفة
+            if (service.product_type === "package") {
+                if (qtyValues) {
+                    // إذا كان qty_values مصفوفة (قائمة قيم)
+                    if (Array.isArray(qtyValues)) {
+                        serviceDetailsHTML += `
+                            <div class="w-full mb-4">
+                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
+                                <select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">
+                        `;
+                        
+                        qtyValues.forEach(value => {
+                            serviceDetailsHTML += `<option value="${value}">${value}</option>`;
+                        });
+                        
+                        serviceDetailsHTML += `
+                                </select>
+                            </div>
+                        `;
+                    } 
+                    // إذا كان qty_values كائن (min و max)
+                    else if (typeof qtyValues === 'object' && qtyValues.min && qtyValues.max) {
+                        serviceDetailsHTML += `
+                            <div class="w-full mb-4">
+                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label>
+                                <input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md">
+                            </div>
+                        `;
+                    }
+                } else {
+                    // إذا لم يكن هناك qty_values، نستخدم حقل إدخال عادي
+                    serviceDetailsHTML += `
+                        <div class="w-full mb-4">
+                            <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
+                            <input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md">
+                        </div>
+                    `;
+                }
+            } else {
+                // إذا لم يكن package، نستخدم الكمية الافتراضية (1)
+                serviceDetailsHTML += `<input type="hidden" id="quantity" value="1">`;
+            }
+            
+            // إضافة قسم السعر
+            serviceDetailsHTML += `
+                <div class="w-full mb-4 p-3 bg-gray-100 rounded-lg">
+                    <div class="flex justify-between items-center">
+                        <span class="text-lg font-semibold">السعر:</span>
+                        <span id="total-price" class="text-xl font-bold text-dark-green">$${basePrice}</span>
+                    </div>
+                </div>
+                
+                <button id="confirm-purchase" class="w-full py-3 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300">
+                    تأكيد الطلب
+                </button>
+            `;
+            
+            serviceDetailsContainer.innerHTML = serviceDetailsHTML;
+            
+            // إضافة مستمع الحدث لحساب السعر عند تغيير الكمية
+            const quantityInput = document.getElementById('quantity');
+            if (quantityInput) {
+                quantityInput.addEventListener('change', calculateTotalPrice);
+                quantityInput.addEventListener('input', calculateTotalPrice);
+            }
+            
+            // إضافة مستمع الحدث لتأكيد الشراء
+            document.getElementById('confirm-purchase').addEventListener('click', confirmPurchase);
+            
+            // إظهار قسم تفاصيل الخدمة وإخفاء الأقسام الأخرى
+            mainCategoriesSection.classList.add('hidden');
+            subCategoriesSection.classList.add('hidden');
+            servicesSection.classList.add('hidden');
+            serviceDetailsSection.classList.remove('hidden');
+        }
+
+        // دالة لحساب السعر الإجمالي
+        function calculateTotalPrice() {
+            const quantityInput = document.getElementById('quantity');
+            const totalPriceElement = document.getElementById('total-price');
+            
+            if (!quantityInput || !totalPriceElement || !currentService) return;
+            
+            const quantity = parseInt(quantityInput.value, 10) || 1;
+            const basePrice = currentService.base_price || currentService.price;
+            const totalPrice = basePrice * quantity;
+            
+            totalPriceElement.textContent = `$${totalPrice.toFixed(2)}`;
+        }
+
+        // دالة لتأكيد عملية الشراء
+        async function confirmPurchase() {
+            if (!currentService) return;
+            
+            // جمع البيانات من النموذج
+            const paramsData = [];
+            try {
+                if (currentService.params) {
+                    const paramsArray = JSON.parse(currentService.params);
+                    paramsArray.forEach((param, index) => {
+                        const input = document.getElementById(`param-${index}`);
+                        if (input && input.value.trim()) {
+                            paramsData.push({
+                                name: param,
+                                value: input.value.trim()
+                            });
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error parsing params:', e);
+            }
+            
+            const quantityInput = document.getElementById('quantity');
+            const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
+            const basePrice = currentService.base_price || currentService.price;
+            const totalPrice = basePrice * quantity;
+            
+            // التحقق من أن المستخدم لديه رصيد كافٍ
+            if (gData.user.balance < totalPrice) {
+                alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
+                return;
+            }
+            
+            // إنشاء الطلب
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([
+                        {
+                            user_id: gData.user.id,
+                            service_id: currentService.id,
+                            quantity: quantity,
+                            total_price: totalPrice,
+                            status: 'pending',
+                            params: paramsData.length > 0 ? JSON.stringify(paramsData) : null,
+                            created_at: new Date().toISOString()
+                        }
+                    ])
+                    .select();
+                
+                if (error) throw error;
+                
+                // تحديث رصيد المستخدم
+                const newBalance = gData.user.balance - totalPrice;
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ balance: newBalance })
+                    .eq('telegram_id', gData.user.id);
+                
+                if (updateError) throw updateError;
+                
+                // تحديث بيانات المستخدم المحلية
+                gData.user.balance = newBalance;
+                renderUserInfo();
+                
+                alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
+                
+                // العودة إلى قائمة الخدمات
+                renderServices(currentService.category_id);
+                
+            } catch (error) {
+                console.error('Error creating order:', error);
+                alert('حدث خطأ أثناء تأكيد الطلب. يرجى المحاولة مرة أخرى.');
+            }
+        }
+
+        // إضافة مستمعي الأحداث
+        mainCategoriesContainer.addEventListener('click', (e) => {
+            const categoryCard = e.target.closest('.category-card');
+            if (categoryCard) {
+                e.preventDefault();
+                const categoryId = parseInt(categoryCard.dataset.categoryId, 10);
+                renderSubCategories(categoryId);
+            }
+        });
+
+        subCategoriesContainer.addEventListener('click', (e) => {
+            const categoryCard = e.target.closest('.category-card');
+            if (categoryCard) {
+                e.preventDefault();
+                const categoryId = parseInt(categoryCard.dataset.categoryId, 10);
+                renderSubCategories(categoryId);
+            }
+        });
+
+        servicesContainer.addEventListener('click', (e) => {
+            const serviceDetailsBtn = e.target.closest('.service-details-btn');
+            if (serviceDetailsBtn) {
+                e.preventDefault();
+                const serviceId = parseInt(serviceDetailsBtn.dataset.serviceId, 10);
+                renderServiceDetails(serviceId);
+            }
+        });
+
+        backToHomeBtn.addEventListener('click', () => {
+            renderMainCategories();
+        });
+
+        backToSubcategoriesBtn.addEventListener('click', () => {
+            if (currentParentId) {
+                const parentCategory = gData.categories.find(c => c.id === currentParentId);
+                if (parentCategory && parentCategory.parent_id) {
+                    renderSubCategories(parentCategory.parent_id);
+                } else {
+                    renderMainCategories();
+                }
+            } else {
+                renderMainCategories();
+            }
+        });
+
+        backToServicesBtn.addEventListener('click', () => {
+            if (currentService) {
+                renderServices(currentService.category_id);
+            } else {
+                renderMainCategories();
+            }
+        });
+    </script>
+</body>
+</html>

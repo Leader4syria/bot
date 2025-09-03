@@ -1,0 +1,295 @@
+{% extends "layout.html" %}
+
+{% block title %}الإحصائيات الشاملة - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}الإحصائيات الشاملة{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- الفلاتر -->
+    <div class="card col-span-2">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">فلاتر الإحصائيات</h2>
+        <form id="statsFilterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label for="time_period" class="block text-gray-700 text-sm font-bold mb-2">الفترة الزمنية:</label>
+                <select id="time_period" name="time_period" class="form-input" onchange="toggleDateField()">
+                    <option value="today">اليوم</option>
+                    <option value="yesterday">أمس</option>
+                    <option value="week">الأسبوع الحالي</option>
+                    <option value="month">الشهر الحالي</option>
+                    <option value="specific">تاريخ محدد</option>
+                    <option value="all" selected>جميع الفترات</option>
+                </select>
+            </div>
+
+            <div id="specificDateContainer" style="display: none;">
+                <label for="specific_date" class="block text-gray-700 text-sm font-bold mb-2">التاريخ المحدد:</label>
+                <input type="date" id="specific_date" name="specific_date" class="form-input" value="{{ specific_date }}">
+            </div>
+
+            <div>
+                <label for="user_id" class="block text-gray-700 text-sm font-bold mb-2">المستخدم (اختياري):</label>
+                <select id="user_id" name="user_id" class="form-input">
+                    <option value="">جميع المستخدمين</option>
+                    {% for user in all_users %}
+                    {% if user.telegram_id != 7721705352 %}
+                    <option value="{{ user.telegram_id }}">{{ user.full_name or user.username }} ({{ user.telegram_id }})</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex items-end space-x-2">
+                <button type="button" onclick="applyFilters()" class="btn-primary w-full">تطبيق الفلاتر</button>
+                <button type="button" onclick="exportStats('excel')" class="btn-success">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button type="button" onclick="exportStats('pdf')" class="btn-danger">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- باقي المحتوى كما هو -->
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+    <!-- بطاقات الإحصائيات الرئيسية -->
+    <div class="card flex items-center justify-between animate-fadeIn">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي الإيرادات</p>
+            <h3 class="text-3xl font-bold text-gray-800">${{ "%.2f"|format(total_revenue) }}</h3>
+        </div>
+        <i class="fas fa-dollar-sign text-4xl text-green-400"></i>
+    </div>
+
+    <div class="card flex items-center justify-between animate-fadeIn delay-100">
+        <div>
+            <p class="text-gray-500 text-sm">إجمالي الطلبات</p>
+            <h3 class="text-3xl font-bold text-gray-800">{{ total_orders }}</h3>
+        </div>
+        <i class="fas fa-shopping-cart text-4xl text-blue-400"></i>
+    </div>
+
+    <div class="card flex items-center justify-between animate-fadeIn delay-200">
+        <div>
+            <p class="text-gray-500 text-sm">متوسط قيمة الطلب</p>
+            <h3 class="text-3xl font-bold text-gray-800">${{ "%.2f"|format(avg_order_value) if avg_order_value > 0 else 0.00 }}</h3>
+        </div>
+        <i class="fas fa-chart-line text-4xl text-purple-400"></i>
+    </div>
+
+    <div class="card flex items-center justify-between animate-fadeIn delay-300">
+        <div>
+            <p class="text-gray-500 text-sm">أعلى رصيد مستخدم</p>
+            <h3 class="text-3xl font-bold text-gray-800">${{ "%.2f"|format(highest_balance) }}</h3>
+        </div>
+        <i class="fas fa-crown text-4xl text-yellow-400"></i>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <!-- إحصائيات المستخدمين -->
+    <div class="card">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">إحصائيات المستخدمين</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>المستخدم</th>
+                        <th>الرصيد الحالي</th>
+                        <th>رصيد الإحالة</th>
+                        <th>عدد الطلبات</th>
+                        <th>إجمالي الإنفاق</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_stat in user_stats %}
+                    <tr class="hover:bg-gray-50">
+                        <td>{{ user_stat.full_name or user_stat.username }} ({{ user_stat.telegram_id }})</td>
+                        <td class="font-semibold text-blue-600">${{ "%.2f"|format(user_stat.balance) }}</td>
+                        <td class="font-semibold text-purple-600">${{ "%.2f"|format(user_stat.referral_balance) }}</td>
+                        <td>{{ user_stat.order_count }}</td>
+                        <td class="font-semibold text-green-600">${{ "%.2f"|format(user_stat.total_spent) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- إحصائيات الخدمات -->
+    <div class="card">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">أفضل الخدمات أداءً</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>الخدمة</th>
+                        <th>عدد الطلبات</th>
+                        <th>إجمالي الإيرادات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service_stat in service_stats %}
+                    <tr class="hover:bg-gray-50">
+                        <td>{{ service_stat.name }}</td>
+                        <td>{{ service_stat.order_count }}</td>
+                        <td class="font-semibold text-green-600">${{ "%.2f"|format(service_stat.total_revenue) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 mb-6">
+    <!-- التقرير اليومي -->
+    <div class="card">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">التقرير اليومي</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-50 p-4 rounded-lg text-center">
+                <p class="text-blue-600 text-sm">طلبات اليوم</p>
+                <h4 class="text-2xl font-bold text-blue-800">{{ daily_stats.orders_today }}</h4>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg text-center">
+                <p class="text-green-600 text-sm">إيرادات اليوم</p>
+                <h4 class="text-2xl font-bold text-green-800">${{ "%.2f"|format(daily_stats.revenue_today) }}</h4>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg text-center">
+                <p class="text-purple-600 text-sm">مستخدمين جدد</p>
+                <h4 class="text-2xl font-bold text-purple-800">{{ daily_stats.new_users_today }}</h4>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg text-center">
+                <p class="text-yellow-600 text-sm">متوسط الطلب</p>
+                <h4 class="text-2xl font-bold text-yellow-800">${{ "%.2f"|format(daily_stats.avg_order_today) if daily_stats.avg_order_today > 0 else 0.00 }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- حركة الرصيد -->
+    <div class="card">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">حركة الرصيد</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>المستخدم</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الرصيد قبل</th>
+                        <th>الرصيد بعد</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for balance_movement in balance_movements %}
+                    <tr class="hover:bg-gray-50">
+                        <td>{{ balance_movement.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ balance_movement.user_name }} ({{ balance_movement.user_id }})</td>
+                        <td>
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if balance_movement.type == 'order' %}bg-blue-100 text-blue-800
+                                {% elif balance_movement.type == 'deposit' %}bg-green-100 text-green-800
+                                {% elif balance_movement.type == 'withdrawal' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ balance_movement.type }}
+                            </span>
+                        </td>
+                        <td class="font-semibold {% if balance_movement.amount < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                            ${{ "%.2f"|format(balance_movement.amount) }}
+                        </td>
+                        <td>${{ "%.2f"|format(balance_movement.balance_before) }}</td>
+                        <td>${{ "%.2f"|format(balance_movement.balance_after) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- الإحصائيات الزمنية -->
+    <div class="card">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">الإحصائيات الزمنية</h2>
+        <div class="space-y-4">
+            <div class="flex justify-between items-center">
+                <span>طلبات آخر 7 أيام:</span>
+                <span class="font-semibold">{{ weekly_stats.orders_last_7_days }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span>إيرادات آخر 7 أيام:</span>
+                <span class="font-semibold text-green-600">${{ "%.2f"|format(weekly_stats.revenue_last_7_days) }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span>مستخدمين جدد آخر 7 أيام:</span>
+                <span class="font-semibold">{{ weekly_stats.new_users_last_7_days }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span>طلبات آخر 30 يوم:</span>
+                <span class="font-semibold">{{ monthly_stats.orders_last_30_days }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span>إيرادات آخر 30 يوم:</span>
+                <span class="font-semibold text-green-600">${{ "%.2f"|format(monthly_stats.revenue_last_30_days) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDateField() {
+    const timePeriod = document.getElementById('time_period').value;
+    const dateContainer = document.getElementById('specificDateContainer');
+    dateContainer.style.display = timePeriod === 'specific' ? 'block' : 'none';
+}
+
+function applyFilters() {
+    const timePeriod = document.getElementById('time_period').value;
+    const userId = document.getElementById('user_id').value;
+    const specificDate = document.getElementById('specific_date').value;
+
+    let url = `{{ url_for('admin.comprehensive_stats') }}?time_period=${timePeriod}&user_id=${userId}`;
+    if (timePeriod === 'specific' && specificDate) {
+        url += `&specific_date=${specificDate}`;
+    }
+
+    window.location.href = url;
+}
+
+function exportStats(format) {
+    const timePeriod = document.getElementById('time_period').value;
+    const userId = document.getElementById('user_id').value;
+    const specificDate = document.getElementById('specific_date').value;
+
+    let url = `{{ url_for('admin.export_stats') }}?format=${format}&time_period=${timePeriod}&user_id=${userId}`;
+    if (timePeriod === 'specific' && specificDate) {
+        url += `&specific_date=${specificDate}`;
+    }
+
+    window.location.href = url;
+}
+
+// تطبيق الفلاتر من URL إذا وجدت
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const timePeriod = urlParams.get('time_period');
+    const userId = urlParams.get('user_id');
+    const specificDate = urlParams.get('specific_date');
+
+    if (timePeriod) {
+        document.getElementById('time_period').value = timePeriod;
+    }
+    if (userId) {
+        document.getElementById('user_id').value = userId;
+    }
+    if (specificDate) {
+        document.getElementById('specific_date').value = specificDate;
+    }
+
+    toggleDateField();
+});
+</script>
+{% endblock %}

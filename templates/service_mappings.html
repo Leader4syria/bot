@@ -1,0 +1,256 @@
+{% extends "layout.html" %}
+
+{% block title %}ربط الخدمات - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}ربط الخدمات مع المزودين{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="card animate-fadeIn">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">إضافة مزود جديد</h2>
+        <form action="{{ url_for('admin.admin_add_provider') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+            <div>
+                <label for="name" class="block text-gray-700 text-sm font-bold mb-2">اسم المزود:</label>
+                <input type="text" id="name" name="name" class="form-input" required>
+            </div>
+            <div>
+                <label for="api_url" class="block text-gray-700 text-sm font-bold mb-2">رابط API:</label>
+                <input type="url" id="api_url" name="api_url" class="form-input" value="https://smmparty.com/api/v2" required>
+            </div>
+            <div>
+                <label for="api_key" class="block text-gray-700 text-sm font-bold mb-2">مفتاح API:</label>
+                <input type="text" id="api_key" name="api_key" class="form-input" required>
+            </div>
+            <div class="flex items-center">
+                <input type="checkbox" id="is_active" name="is_active" checked class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                <label for="is_active" class="mr-2 block text-sm text-gray-900 cursor-pointer">نشط</label>
+            </div>
+            <button type="submit" class="btn-primary">إضافة مزود</button>
+        </form>
+    </div>
+
+    <div class="card animate-fadeIn">
+        <h2 class="text-2xl font-bold mb-6 text-gray-800">ربط خدمة مع مزود</h2>
+        <form action="{{ url_for('admin.admin_add_service_mapping') }}" method="POST" class="space-y-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+            <input type="hidden" name="price_multiplier" value="1.0">
+            <div>
+                <label for="service_id" class="block text-gray-700 text-sm font-bold mb-2">الخدمة:</label>
+                <select id="service_id" name="service_id" class="form-input" required>
+                    {% for service in services %}
+                        <option value="{{ service.id }}">{{ service.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="provider_id" class="block text-gray-700 text-sm font-bold mb-2">المزود:</label>
+                <select id="provider_id" name="provider_id" class="form-input" required>
+                    {% for provider in providers %}
+                        <option value="{{ provider.id }}">{{ provider.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="provider_service_id" class="block text-gray-700 text-sm font-bold mb-2">معرف الخدمة لدى المزود:</label>
+                <input type="text" id="provider_service_id" name="provider_service_id" class="form-input" required>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="min_quantity" class="block text-gray-700 text-sm font-bold mb-2">الحد الأدنى:</label>
+                    <input type="number" id="min_quantity" name="min_quantity" class="form-input" value="0">
+                </div>
+                <div>
+                    <label for="max_quantity" class="block text-gray-700 text-sm font-bold mb-2">الحد الأقصى:</label>
+                    <input type="number" id="max_quantity" name="max_quantity" class="form-input" value="1000000">
+                </div>
+            </div>
+            <button type="submit" class="btn-primary">ربط الخدمة</button>
+        </form>
+    </div>
+</div>
+
+<!-- إضافة قسم جديد: إضافة خدمة من المزود -->
+<div class="card animate-fadeIn mt-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">إضافة خدمة من المزود</h2>
+    <form action="{{ url_for('admin.admin_add_service_from_provider') }}" method="POST" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+        <input type="hidden" name="price_multiplier" value="1.0">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="add_provider_id" class="block text-gray-700 text-sm font-bold mb-2">المزود:</label>
+                <select id="add_provider_id" name="provider_id" class="form-input" required>
+                    {% for provider in providers %}
+                        <option value="{{ provider.id }}">{{ provider.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="add_category_id" class="block text-gray-700 text-sm font-bold mb-2">التصنيف:</label>
+                <select id="add_category_id" name="category_id" class="form-input" required>
+                    {% for service in services %}
+                        <option value="{{ service.category_id }}">{{ service.category.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="provider_service_id" class="block text-gray-700 text-sm font-bold mb-2">معرف الخدمة لدى المزود:</label>
+                <input type="text" id="provider_service_id" name="provider_service_id" class="form-input" required>
+            </div>
+            <div>
+                <label for="service_price" class="block text-gray-700 text-sm font-bold mb-2">سعر الخدمة (لكل 1000):</label>
+                <input type="number" step="0.0001" id="service_price" name="service_price" class="form-input" required>
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label for="min_quantity" class="block text-gray-700 text-sm font-bold mb-2">الحد الأدنى:</label>
+                <input type="number" id="min_quantity" name="min_quantity" class="form-input" required>
+            </div>
+            <div>
+                <label for="max_quantity" class="block text-gray-700 text-sm font-bold mb-2">الحد الأقصى:</label>
+                <input type="number" id="max_quantity" name="max_quantity" class="form-input" required>
+            </div>
+        </div>
+        <button type="submit" class="btn-primary">إضافة خدمة جديدة</button>
+    </form>
+</div>
+
+<div class="card animate-fadeIn mt-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة المزودين</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>الاسم</th>
+                    <th>رابط API</th>
+                    <th>الحالة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for provider in providers %}
+                <tr class="hover:bg-gray-50">
+                    <td>{{ provider.id }}</td>
+                    <td>{{ provider.name }}</td>
+                    <td class="text-sm">{{ provider.api_url }}</td>
+                    <td>
+                        <span class="px-2 py-1 text-xs rounded-full {{ 'bg-green-100 text-green-800' if provider.is_active else 'bg-red-100 text-red-800' }}">
+                            {{ 'نشط' if provider.is_active else 'غير نشط' }}
+                        </span>
+                    </td>
+                    <td>
+                        <form action="{{ url_for('admin.admin_delete_provider', provider_id=provider.id) }}" method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                            <button type="submit" class="btn-danger text-xs" onclick="return confirm('هل تريد حذف هذا المزود؟')">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card animate-fadeIn mt-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">الخدمات المربوطة</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>الخدمة</th>
+                    <th>المزود</th>
+                    <th>معرف الخدمة</th>
+                    <th>سعرنا</th>
+                    <th>سعر المزود</th>
+                    <th>المضاعف</th>
+                    <th>الحد الأدنى</th>
+                    <th>الحد الأقصى</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for mapping in service_mappings %}
+                <tr class="hover:bg-gray-50">
+                    <td>{{ mapping.id }}</td>
+                    <td>{{ mapping.service.name }}</td>
+                    <td>{{ mapping.provider.name }}</td>
+                    <td>{{ mapping.provider_service_id }}</td>
+                    <td>${{ mapping.service.base_price }}</td>
+                    <td>
+                        {% set provider_price = mapping.service.base_price / mapping.price_multiplier %}
+                        ${{ "%.4f"|format(provider_price) }}
+                    </td>
+                    <td>
+                        {{ "%.4f"|format(mapping.price_multiplier) }}
+                    </td>
+                    <td>
+                        <input type="number" name="min_quantity" value="{{ mapping.min_quantity }}" 
+                               class="w-20 p-1 border rounded" required>
+                    </td>
+                    <td>
+                        <input type="number" name="max_quantity" value="{{ mapping.max_quantity }}" 
+                               class="w-20 p-1 border rounded" required>
+                    </td>
+                    <td>
+                        <form action="{{ url_for('admin.admin_delete_service_mapping', mapping_id=mapping.id) }}" method="POST" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+                            <button type="submit" class="btn-danger text-xs ml-2" onclick="return confirm('هل تريد حذف هذا الربط؟')">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card animate-fadeIn mt-6">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">جلب الخدمات من المزود</h2>
+    <form action="{{ url_for('admin.admin_fetch_provider_services') }}" method="POST" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+        <div>
+            <label for="fetch_provider_id" class="block text-gray-700 text-sm font-bold mb-2">اختر المزود:</label>
+            <select id="fetch_provider_id" name="provider_id" class="form-input" required>
+                {% for provider in providers %}
+                    <option value="{{ provider.id }}">{{ provider.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn-primary">جلب الخدمات</button>
+    </form>
+    
+    {% if provider_services %}
+    <div class="mt-6">
+        <h3 class="text-xl font-bold mb-4">الخدمات المتاحة:</h3>
+        <div class="overflow-x-auto max-h-96">
+            <table class="min-w-full">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>الاسم</th>
+                        <th>السعر</th>
+                        <th>الحد الأدنى</th>
+                        <th>الحد الأقصى</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service in provider_services %}
+                    <tr class="hover:bg-gray-50">
+                        <td>{{ service.service }}</td>
+                        <td>{{ service.name }}</td>
+                        <td>${{ service.rate }}</td>
+                        <td>{{ service.min }}</td>
+                        <td>{{ service.max }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

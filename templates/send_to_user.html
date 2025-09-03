@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block title %}إرسال رسالة لمستخدم - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إرسال رسالة لمستخدم معين{% endblock %}
+
+{% block content %}
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">إرسال رسالة لمستخدم</h2>
+    
+    <form action="{{ url_for('admin.admin_send_to_user') }}" method="POST" id="sendToUserForm" class="space-y-4">
+        <div>
+            <label for="telegram_id" class="block text-gray-700 text-sm font-bold mb-2">معرف التليجرام:</label>
+            <input type="text" id="telegram_id" name="telegram_id" class="form-input" placeholder="أدخل معرف المستخدم" required>
+        </div>
+        
+        <div>
+            <label for="message" class="block text-gray-700 text-sm font-bold mb-2">نص الرسالة:</label>
+            <textarea id="message" name="message" class="form-input h-32" placeholder="أدخل نص الرسالة هنا..." required></textarea>
+        </div>
+        
+        <div>
+            <label for="message_type" class="block text-gray-700 text-sm font-bold mb-2">نوع الرسالة:</label>
+            <select id="message_type" name="message_type" class="form-input">
+                <option value="text">نص عادي</option>
+                <option value="html">HTML (تنسيق متقدم)</option>
+            </select>
+        </div>
+        
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="mr-3">
+                    <p class="text-sm text-yellow-700">
+                        <b>تنبيه:</b> تأكد من صحة الرسالة ومعرف المستخدم قبل الإرسال.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary w-full md:w-auto">
+            <i class="fas fa-paper-plane mr-2"></i> إرسال الرسالة
+        </button>
+    </form>
+</div>
+{% endblock %}

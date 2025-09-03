@@ -1,0 +1,81 @@
+{% extends "layout.html" %}
+
+{% block title %}المستخدمون - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة المستخدمين{% endblock %}
+
+{% block content %}
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة المستخدمين</h2>
+    
+    <!-- إضافة نموذج البحث -->
+    <div class="mb-6">
+        <form action="{{ url_for('admin.admin_users') }}" method="GET" class="flex items-center gap-4">
+            <input type="text" name="search" placeholder="ابحث بالمعرف أو الاسم أو اليوزرنيم" 
+                   value="{{ request.args.get('search', '') }}"
+                   class="form-input flex-1">
+            <button type="submit" class="btn-primary">بحث</button>
+            {% if request.args.get('search') %}
+                <a href="{{ url_for('admin.admin_users') }}" class="btn-secondary">إعادة تعيين</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>معرف تليجرام</th>
+                    <th>اسم المستخدم</th>
+                    <th>الاسم الكامل</th>
+                    <th>الرصيد الأساسي</th>
+                    <th>رصيد الإحالة</th>
+                    <th>مشرف</th>
+                    <th>كود الإحالة</th>
+                    <th>المحيل (ID)</th>
+                    <th>تاريخ التسجيل</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for user in users %}
+                    <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.telegram_id }}</td>
+                        <td>{{ user.username or 'N/A' }}</td>
+                        <td>{{ user.full_name or 'N/A' }}</td>
+                        <td class="font-semibold text-blue-600">${{ "%.2f"|format(user.balance) }}</td>
+                        <td class="font-semibold text-purple-600">${{ "%.2f"|format(user.referral_balance) }}</td>
+                        <td>
+                            {% if user.is_admin %}
+                                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">نعم</span>
+                            {% else %}
+                                <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">لا</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.referral_code or 'N/A' }}</td>
+                        <td>{{ user.referrer_id or 'N/A' }}</td>
+                        <td>{{ user.registered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="flex flex-col space-y-2">
+                            <form action="{{ url_for('admin.admin_edit_user_balance', user_id=user.telegram_id) }}" method="POST" class="flex items-center space-x-2 rtl:space-x-reverse">
+                                <input type="number" step="0.01" name="new_balance" value="{{ '%.2f'|format(user.balance) }}" class="form-input w-28 text-sm" required>
+                                <button type="submit" class="btn-primary text-sm py-2 px-3">تعديل الرصيد الأساسي</button>
+                            </form>
+                            <form action="{{ url_for('admin.admin_edit_user_referral_balance', user_id=user.telegram_id) }}" method="POST" class="flex items-center space-x-2 rtl:space-x-reverse">
+                                <input type="number" step="0.01" name="new_referral_balance" value="{{ '%.2f'|format(user.referral_balance) }}" class="form-input w-28 text-sm" required>
+                                <button type="submit" class="btn-secondary text-sm py-2 px-3">تعديل رصيد الإحالة</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center py-4 text-gray-500">لا توجد نتائج مطابقة للبحث</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "layout.html" %}
+
+{% block title %}الطلبات - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة الطلبات{% endblock %}
+
+{% block content %}
+<style>
+    /* Styling for the modal */
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.4);
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: auto;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+    }
+
+    .modal-content input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 8px;
+        margin-bottom: 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+    }
+</style>
+
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة الطلبات</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>المستخدم (ID)</th>
+                    <th>الخدمة</th>
+                    <th>الكمية</th>
+                    <th>الرابط/المعرف</th>
+                    <th>السعر الإجمالي</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الطلب</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.user_id }} - ({{ order.user.username or order.user.full_name or 'N/A' }})</td>
+                    <td>{{ order.service.name if order.service else 'N/A' }}</td>
+                    <td>{{ order.quantity }}</td>
+                    <td>
+                        <button onclick="showLinkModal('{{ order.link_or_id }}')" class="text-blue-600 hover:text-blue-800 font-semibold transition-colors duration-200">
+                            عرض الرابط
+                        </button>
+                    </td>
+                    <td class="font-semibold text-blue-600">${{ "%.2f"|format(order.total_price) }}</td>
+                    <td>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
+                            {% if order.status == 'Pending' %}bg-yellow-100 text-yellow-800
+                            {% elif order.status == 'Processing' %}bg-blue-100 text-blue-800
+                            {% elif order.status == 'Completed' %}bg-green-100 text-green-800
+                            {% elif order.status == 'Cancelled' %}bg-red-100 text-red-800
+                            {% else %}bg-gray-100 text-gray-800{% endif %}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td>{{ order.ordered_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <div class="flex items-center space-x-2 rtl:space-x-reverse">
+                            {% if order.status != 'Completed' %}
+                            <form action="{{ url_for('admin.admin_update_order_status', order_id=order.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="new_status" value="Processing">
+                                <button type="submit" class="bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-200 text-sm py-2 px-3">
+                                    قيد التنفيذ
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin.admin_update_order_status', order_id=order.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="new_status" value="Completed">
+                                <button type="submit" class="btn-primary text-sm py-2 px-3">
+                                    مكتمل
+                                </button>
+                            </form>
+                            <form action="{{ url_for('admin.admin_update_order_status', order_id=order.id) }}" method="POST" class="inline">
+                                <input type="hidden" name="new_status" value="Cancelled">
+                                <button type="submit" class="bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200 text-sm py-2 px-3">
+                                    إلغاء
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Link Modal -->
+<div id="linkModal" class="modal">
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">الرابط/المعرف</h3>
+            <span class="text-gray-500 hover:text-gray-800 cursor-pointer" onclick="closeLinkModal()">&times;</span>
+        </div>
+        <p class="mb-4">انسخ الرابط أو المعرف أدناه:</p>
+        <input type="text" id="linkInput" readonly>
+        <button onclick="copyLink()" class="btn-primary w-full">نسخ</button>
+    </div>
+</div>
+
+<script>
+    // Function to show the modal with the link/ID
+    function showLinkModal(link) {
+        document.getElementById('linkInput').value = link;
+        document.getElementById('linkModal').style.display = 'flex';
+    }
+
+    // Function to close the modal
+    function closeLinkModal() {
+        document.getElementById('linkModal').style.display = 'none';
+    }
+
+    // Function to copy the link to the clipboard
+    function copyLink() {
+        const linkInput = document.getElementById('linkInput');
+        linkInput.select();
+        document.execCommand('copy');
+        alert('تم نسخ الرابط!');
+        closeLinkModal();
+    }
+</script>
+{% endblock %}

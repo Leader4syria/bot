@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+
+{% block title %}طرق الدفع - لوحة تحكم المشرف{% endblock %}
+{% block page_title %}إدارة طرق الدفع{% endblock %}
+
+{% block content %}
+<div class="card mb-6 animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">إضافة طريقة دفع جديدة</h2>
+    <form action="{{ url_for('admin_add_payment_method') }}" method="POST" class="space-y-4">
+        <div>
+            <label for="name" class="block text-gray-700 text-sm font-bold mb-2">اسم طريقة الدفع:</label>
+            <input type="text" id="name" name="name" class="form-input" placeholder="مثال: USDT TRC20" required>
+        </div>
+        <div>
+            <label for="description" class="block text-gray-700 text-sm font-bold mb-2">الوصف:</label>
+            <textarea id="description" name="description" class="form-input h-24" placeholder="وصف طريقة الدفع"></textarea>
+        </div>
+        <div>
+            <label for="contact_user" class="block text-gray-700 text-sm font-bold mb-2">يوزر التواصل:</label>
+            <input type="text" id="contact_user" name="contact_user" class="form-input" placeholder="مثال: @admin">
+        </div>
+        <div>
+            <label for="instructions" class="block text-gray-700 text-sm font-bold mb-2">تعليمات الدفع:</label>
+            <textarea id="instructions" name="instructions" class="form-input h-24" placeholder="تعليمات إضافية للدفع"></textarea>
+        </div>
+        <div class="flex items-center mb-4">
+            <input type="checkbox" id="is_available" name="is_available" class="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" checked>
+            <label for="is_available" class="mr-2 block text-sm text-gray-900 cursor-pointer">متاحة حاليًا</label>
+        </div>
+        <button type="submit" class="btn-primary w-full md:w-auto">إضافة طريقة دفع</button>
+    </form>
+</div>
+
+<div class="card animate-fadeIn">
+    <h2 class="text-2xl font-bold mb-6 text-gray-800">قائمة طرق الدفع</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>الاسم</th>
+                    <th>الوصف</th>
+                    <th>يوزر التواصل</th>
+                    <th>التعليمات</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الإضافة</th>
+                    <th>الإجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for method in payment_methods %}
+                <tr class="hover:bg-gray-50 transition duration-150 ease-in-out">
+                    <td>{{ method.id }}</td>
+                    <td>{{ method.name }}</td>
+                    <td>{{ method.description or 'N/A' }}</td>
+                    <td>{{ method.contact_user or 'N/A' }}</td>
+                    <td>{{ method.instructions or 'N/A' }}</td>
+                    <td>
+                        {% if method.is_available %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-green-100 text-green-800">متاحة</span>
+                        {% else %}
+                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full bg-red-100 text-red-800">غير متاحة</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ method.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td class="flex flex-wrap items-center space-x-2 rtl:space-x-reverse space-y-2 md:space-y-0">
+                        <form action="{{ url_for('admin_edit_payment_method', method_id=method.id) }}" method="POST" class="flex flex-wrap items-center space-x-2 rtl:space-x-reverse space-y-2 md:space-y-0">
+                            <input type="text" name="name" value="{{ method.name }}" class="form-input w-28 text-sm" required>
+                            <textarea name="description" class="form-input h-16 w-32 text-sm" placeholder="الوصف">{{ method.description if method.description else '' }}</textarea>
+                            <input type="text" name="contact_user" value="{{ method.contact_user if method.contact_user else '' }}" class="form-input w-28 text-sm" placeholder="يوزر التواصل">
+                            <textarea name="instructions" class="form-input h-16 w-32 text-sm" placeholder="التعليمات">{{ method.instructions if method.instructions else '' }}</textarea>
+                            <div class="flex items-center">
+                                <input type="checkbox" name="is_available" {% if method.is_available %}checked{% endif %} class="h-4 w-4 text-blue-600 border-gray-300 rounded">
+                                <label for="is_available" class="mr-2 block text-sm text-gray-900 cursor-pointer">متاحة</label>
+                            </div>
+                            <button type="submit" class="btn-secondary text-sm py-2 px-3">تعديل</button>
+                        </form>
+                        <form action="{{ url_for('admin_delete_payment_method', method_id=method.id) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف طريقة الدفع هذه؟');">
+                            <button type="submit" class="btn-danger text-sm py-2 px-3">حذف</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
