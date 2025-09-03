@@ -147,20 +147,12 @@ def get_webapp_data():
         try:
             user = s.query(User).filter_by(telegram_id=user_id).first()
             if not user:
-                 # If user does not exist, create them
-                user = User(
-                    telegram_id=user_id,
-                    full_name=user_data.get('first_name', '') + ' ' + user_data.get('last_name', ''),
-                    username=user_data.get('username'),
-                    balance=0.0 # Default balance
-                )
-                s.add(user)
-                s.commit()
-                # Re-fetch user to get ID and other defaults
-                user = s.query(User).filter_by(telegram_id=user_id).first()
+                return jsonify({"ok": False, "error": "User not found"}), 404
 
-            # Fetch user and order data
+            # Fetch all necessary data
             orders_q = s.query(Order).options(joinedload(Order.service)).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
+            categories = s.query(Category).order_by(Category.id).all()
+            services = s.query(Service).filter_by(is_available=True).order_by(Service.id).all()
 
             # Serialize data into a clean format for the frontend
             user_info = {
@@ -172,7 +164,7 @@ def get_webapp_data():
             orders_info = [
                 {
                     "id": o.id,
-                    "service_name": o.service.name if o.service else "Unknown Service",
+                    "service_name": o.service.name,
                     "quantity": o.quantity,
                     "total_price": f"{o.total_price:.2f}",
                     "status": o.status,
@@ -180,10 +172,26 @@ def get_webapp_data():
                 } for o in orders_q
             ]
 
+            categories_info = [
+                {"id": c.id, "name": c.name, "parent_id": c.parent_id} for c in categories
+            ]
+
+            services_info = [
+                {
+                    "id": s.id,
+                    "name": s.name,
+                    "description": s.description,
+                    "price": f"{s.base_price:.2f}",
+                    "category_id": s.category_id
+                } for s in services
+            ]
+
             return jsonify({
                 "ok": True,
                 "user": user_info,
                 "orders": orders_info,
+                "categories": categories_info,
+                "services": services_info
             })
         finally:
             s.close()
@@ -191,79 +199,46 @@ def get_webapp_data():
         print(f"Error in get_webapp_data: {e}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
 
-@app.route('/api/create_order', methods=['POST'])
-def create_order():
+
+from bot.notifications import notify_admins_new_order
+from collections import namedtuple
+
+@app.route('/api/notify_admin_new_order', methods=['POST'])
+def notify_admin_new_order_route():
     """
-    API endpoint to create a new order in the local database.
-    Authenticates the user, checks balance, creates order, and updates balance.
+    API endpoint to trigger a notification to admins about a new order.
+    Receives order data from the frontend after it has been created in Supabase.
     """
     try:
-        init_data_str = request.json.get('initData')
-        if not init_data_str:
-            return jsonify({"ok": False, "error": "initData is required"}), 400
+        data = request.json
 
-        is_valid, user_data = is_valid_init_data(init_data_str, BOT_TOKEN)
-        if not is_valid or not user_data:
-            return jsonify({"ok": False, "error": "Invalid initData"}), 403
+        # Create a mock object that mimics the structure the notification function expects.
+        # This avoids needing a full SQLAlchemy object.
+        MockUser = namedtuple('MockUser', ['full_name'])
+        MockService = namedtuple('MockService', ['name'])
 
-        user_id = user_data.get('id')
+        # The frontend will send data in a structure that we can use to build these mocks.
+        mock_order = namedtuple('MockOrder', [
+            'id', 'user', 'user_id', 'service', 'service_id',
+            'quantity', 'total_price', 'status', 'ordered_at'
+        ])(
+            id=data.get('id'),
+            user=MockUser(full_name=data.get('user_full_name')),
+            user_id=data.get('user_id'),
+            service=MockService(name=data.get('service_name')),
+            service_id=data.get('service_id'),
+            quantity=data.get('quantity'),
+            total_price=float(data.get('total_price')),
+            status=data.get('status'),
+            ordered_at=datetime.fromisoformat(data.get('ordered_at').replace('Z', '+00:00'))
+        )
 
-        # Get order details from request
-        service_id = request.json.get('service_id')
-        quantity = request.json.get('quantity')
-        total_price = request.json.get('total_price')
-        params_data = request.json.get('params')
+        notify_admins_new_order(mock_order)
 
-        if not all([service_id, quantity, total_price]):
-             return jsonify({"ok": False, "error": "Missing order details"}), 400
-
-        s = Session()
-        try:
-            user = s.query(User).filter_by(telegram_id=user_id).first()
-            if not user:
-                return jsonify({"ok": False, "error": "User not found"}), 404
-
-            # The service is from Supabase, so we can't query it here.
-            # We trust the client to send the correct price.
-            # A potential improvement would be to have a shared secret or a server-to-server call to verify the price.
-
-            if user.balance < float(total_price):
-                return jsonify({"ok": False, "error": "Insufficient balance"}), 400
-
-            new_order = Order(
-                user_id=user.telegram_id,
-                service_id=service_id, # This ID comes from Supabase
-                quantity=quantity,
-                total_price=total_price,
-                status='pending',
-                params=json.dumps(params_data, ensure_ascii=False) if params_data else None,
-                ordered_at=datetime.now()
-            )
-            s.add(new_order)
-
-            user.balance -= float(total_price)
-
-            s.commit()
-
-            new_balance = user.balance
-
-            return jsonify({
-                "ok": True,
-                "message": "Order created successfully!",
-                "new_balance": f"{new_balance:.2f}"
-            })
-
-        except Exception as e:
-            s.rollback()
-            print(f"Error creating order: {e}")
-            return jsonify({"ok": False, "error": "Could not create order"}), 500
-        finally:
-            s.close()
-
+        return jsonify({"ok": True, "message": "Notification sent."})
     except Exception as e:
-        print(f"Error in create_order: {e}")
+        print(f"Error in notify_admin_new_order_route: {e}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
-
 
 if __name__ == "__main__":
     init_db()

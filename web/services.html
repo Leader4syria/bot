@@ -346,20 +346,19 @@
 
         async function fetchInitialData(initData) {
             try {
-                // Step 1: Fetch user balance and orders from local server
-                const localResponse = await fetch('/api/webapp/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: initData }),
-                });
-                if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
-                const localData = await localResponse.json();
-                if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
-                
-                gData.user = localData.user;
-                gData.orders = localData.orders;
+                // This function now fetches everything from Supabase as per the new requirement.
+                const telegramUserId = extractTelegramUserId(initData);
+                if (!telegramUserId) {
+                    throw new Error("Could not identify Telegram user.");
+                }
 
-                // Step 2: Fetch categories and services from Supabase
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('telegram_id', telegramUserId)
+                    .single();
+                if (userError && userError.code !== 'PGRST116') throw userError;
+
                 const { data: categories, error: categoriesError } = await supabase
                     .from('categories')
                     .select('*')
@@ -372,10 +371,10 @@
                     .order('id');
                 if (servicesError) throw servicesError;
 
+                gData.user = userData || { id: telegramUserId, balance: 0, full_name: 'New User' };
                 gData.categories = categories || [];
                 gData.services = services || [];
                 
-                // Step 3: Render the app with combined data
                 renderApp();
                 
             } catch (error) {
@@ -385,6 +384,21 @@
                 loader.style.display = 'none';
                 appContent.classList.remove('hidden');
                 appContent.classList.add('flex');
+            }
+        }
+
+        function extractTelegramUserId(initData) {
+            try {
+                const params = new URLSearchParams(initData);
+                const userStr = params.get('user');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    return user.id;
+                }
+                return null;
+            } catch (e) {
+                console.error('Error parsing Telegram user data:', e);
+                return null;
             }
         }
 
@@ -579,7 +593,7 @@
                     try {
                         paramsData = JSON.parse(trimmedParams);
                     } catch (e) {
-                        console.error('Failed to parse service.params as JSON, treating as single param:', trimmedParams, e);
+                        console.error('Failed to parse service.params as JSON. Full Error:', e);
                         paramsData = [trimmedParams]; // Fallback to treat as a single parameter
                     }
                 } else {
@@ -587,10 +601,26 @@
                 }
             }
 
+            // Robust qty_values parsing
             let qtyValues = null;
-            try {
-                if (service.qty_values) qtyValues = JSON.parse(service.qty_values);
-            } catch (e) { console.error('Error parsing qty_values:', e); }
+            if (service.qty_values) {
+                if (typeof service.qty_values === 'string' && service.qty_values.trim()) {
+                    const trimmedQty = service.qty_values.trim();
+                    if (trimmedQty.startsWith('[') || trimmedQty.startsWith('{')) {
+                        try {
+                            qtyValues = JSON.parse(trimmedQty);
+                        } catch (e) {
+                            console.error('Failed to parse service.qty_values as JSON. Full Error:', e);
+                            qtyValues = null;
+                        }
+                    } else {
+                        console.error('service.qty_values is a plain string, which is not supported:', trimmedQty);
+                        qtyValues = null;
+                    }
+                } else if (typeof service.qty_values === 'object') {
+                    qtyValues = service.qty_values;
+                }
+            }
             
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
@@ -677,9 +707,16 @@
             if (!currentService) return;
             
             const paramsData = [];
+            let paramsArray;
             try {
-                if (currentService.params) {
-                    const paramsArray = JSON.parse(currentService.params);
+                if (currentService.params && typeof currentService.params === 'string' && currentService.params.trim()) {
+                    const trimmedParams = currentService.params.trim();
+                    if (trimmedParams.startsWith('[') || trimmedParams.startsWith('{')) {
+                        paramsArray = JSON.parse(trimmedParams);
+                    } else {
+                        paramsArray = [trimmedParams];
+                    }
+
                     paramsArray.forEach((param, index) => {
                         const input = document.getElementById(`param-${index}`);
                         if (input && input.value.trim()) {
@@ -699,36 +736,65 @@
             const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
-            if (parseFloat(gData.user.balance) < totalPrice) {
+            if (gData.user.balance < totalPrice) {
                 alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
                 return;
             }
             
             try {
-                const response = await fetch('/api/create_order', {
+                // Step 1: Create order in Supabase
+                const { data: newOrderData, error } = await supabase
+                    .from('orders')
+                    .insert([
+                        {
+                            user_id: gData.user.id,
+                            service_id: currentService.id,
+                            quantity: quantity,
+                            total_price: totalPrice,
+                            status: 'pending',
+                            params: paramsData.length > 0 ? JSON.stringify(paramsData) : null,
+                            created_at: new Date().toISOString()
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                // Step 2: Update user balance in Supabase
+                const newBalance = gData.user.balance - totalPrice;
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ balance: newBalance })
+                    .eq('telegram_id', gData.user.id);
+
+                if (updateError) throw updateError;
+
+                gData.user.balance = newBalance;
+                renderUserInfo();
+
+                // Step 3: Notify admin via local backend
+                fetch('/api/notify_admin_new_order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        initData: gData.initData,
+                        id: newOrderData.id,
+                        user_full_name: gData.user.full_name,
+                        user_id: gData.user.id,
+                        service_name: currentService.name,
                         service_id: currentService.id,
                         quantity: quantity,
                         total_price: totalPrice,
-                        params: paramsData
+                        status: newOrderData.status,
+                        ordered_at: newOrderData.created_at
                     }),
-                });
+                }).catch(err => console.error('Failed to send notification:', err));
 
-                const result = await response.json();
+                alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
+                renderServices(currentService.category_id);
 
-                if (result.ok) {
-                    gData.user.balance = result.new_balance;
-                    renderUserInfo();
-                    alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
-                    renderServices(currentService.category_id);
-                } else {
-                    throw new Error(result.error || 'Failed to create order.');
-                }
             } catch (error) {
-                console.error('Error creating order:', error);
+                console.error('Error during purchase process:', error);
                 alert(`حدث خطأ أثناء تأكيد الطلب: ${error.message}`);
             }
         }
