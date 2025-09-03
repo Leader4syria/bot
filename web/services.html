@@ -351,48 +351,55 @@
                 const telegramUserId = extractTelegramUserId(initData);
                 
                 // جلب بيانات المستخدم أولاً
-                const { data: userData, error: userError } = await supabase
+                let { data: userData, error: userError } = await supabase
                     .from('users')
                     .select('*')
                     .eq('telegram_id', telegramUserId)
                     .single();
-                
-                if (userError && userError.code !== 'PGRST116') {
-                    // PGRST116 هو خطأ "لا توجد نتائج"، نتجاهله ونستخدم بيانات افتراضية
-                    console.warn('User not found, using default data');
+
+                // إذا لم يتم العثور على المستخدم، قم بإنشاء مستخدم جديد
+                if (userError && userError.code === 'PGRST116') {
+                    console.log('User not found, creating a new one...');
+                    const { data: newUser, error: insertError } = await supabase
+                        .from('users')
+                        .insert([
+                            { telegram_id: telegramUserId, username: `user_${telegramUserId}`, balance: 0.0 }
+                        ])
+                        .select()
+                        .single();
+
+                    if (insertError) {
+                        console.error('Error creating new user:', insertError);
+                        throw insertError;
+                    }
+
+                    userData = newUser; // استخدم بيانات المستخدم الجديد
+                } else if (userError) {
+                    // لأي أخطاء أخرى، ألقِ الخطأ
+                    console.error('Error fetching user data:', userError);
+                    throw userError;
                 }
                 
-                // جلب التصنيفات من Supabase
-                const { data: categories, error: categoriesError } = await supabase
-                    .from('categories')
-                    .select('*')
-                    .order('id');
-                
+                // Now that we have a guaranteed user, set it in gData
+                gData.user = userData;
+
+                // Fetch other data in parallel
+                const [categoriesResult, servicesResult, ordersResult] = await Promise.all([
+                    supabase.from('categories').select('*').order('id'),
+                    supabase.from('services').select('*').order('id'),
+                    supabase.from('orders').select('*').eq('user_id', gData.user.id) // Use PK
+                ]);
+
+                const { data: categories, error: categoriesError } = categoriesResult;
                 if (categoriesError) throw categoriesError;
-                
-                // جلب الخدمات من Supabase
-                const { data: services, error: servicesError } = await supabase
-                    .from('services')
-                    .select('*')
-                    .order('id');
-                
+
+                const { data: services, error: servicesError } = servicesResult;
                 if (servicesError) throw servicesError;
                 
-                // جلب الطلبات الخاصة بالمستخدم
-                const { data: ordersData, error: ordersError } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', telegramUserId);
-                
+                const { data: ordersData, error: ordersError } = ordersResult;
                 if (ordersError) console.error('Error fetching orders:', ordersError);
                 
                 // تعبئة البيانات في gData
-                gData.user = userData || {
-                    id: telegramUserId,
-                    balance: 0,
-                    username: 'مستخدم'
-                };
-                
                 gData.orders = ordersData || [];
                 gData.categories = categories || [];
                 gData.services = services || [];
@@ -854,7 +861,7 @@
                 const { error: updateError } = await supabase
                     .from('users')
                     .update({ balance: newBalance })
-                    .eq('telegram_id', gData.user.id);
+                    .eq('id', gData.user.id);
                 
                 if (updateError) throw updateError;
                 
