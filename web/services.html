@@ -297,17 +297,17 @@
 
     <script>
         // تهيئة Supabase
-        const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co'; // استبدل برابط Supabase الخاص بك
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s'; // استبدل بمفتاح Supabase الخاص بك
-        
+        const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s';
+
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
+
         const gData = {
             user: null,
             orders: [],
             categories: [],
             services: [],
-            // إضافة مسار التصفح
+            initData: null,
             breadcrumb: []
         };
 
@@ -326,12 +326,10 @@
         const backToHomeBtn = document.getElementById('back-to-home');
         const backToSubcategoriesBtn = document.getElementById('back-to-subcategories');
         
-        // عناصر جديدة لصفحة تفاصيل الخدمة
         const serviceDetailsSection = document.getElementById('service-details-section');
         const serviceDetailsContainer = document.getElementById('service-details');
         const backToServicesBtn = document.getElementById('back-to-services');
         
-        // عناصر جديدة للمسار (breadcrumb)
         const breadcrumbContainer = document.getElementById('breadcrumb');
         const breadcrumbServicesContainer = document.getElementById('breadcrumb-services');
         const breadcrumbDetailsContainer = document.getElementById('breadcrumb-details');
@@ -342,72 +340,47 @@
         document.addEventListener('DOMContentLoaded', () => {
             const tg = window.Telegram.WebApp;
             tg.ready();
+            gData.initData = tg.initData;
             fetchInitialData(tg.initData);
         });
 
         async function fetchInitialData(initData) {
             try {
-                // استخراج معرف المستخدم من بيانات Telegram
-                const telegramUserId = extractTelegramUserId(initData);
-                
-                // جلب بيانات المستخدم أولاً
-                const { data: userData, error: userError } = await supabase
-                    .from('users')
-                    .select('*')
-                    .eq('telegram_id', telegramUserId)
-                    .single();
-                
-                if (userError && userError.code !== 'PGRST116') {
-                    // PGRST116 هو خطأ "لا توجد نتائج"، نتجاهله ونستخدم بيانات افتراضية
-                    console.warn('User not found, using default data');
-                }
-                
-                // جلب التصنيفات من Supabase
+                // Step 1: Fetch user balance and orders from local server
+                const localResponse = await fetch('/api/webapp/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData: initData }),
+                });
+                if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
+                const localData = await localResponse.json();
+                if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
+
+                gData.user = localData.user;
+                gData.orders = localData.orders;
+
+                // Step 2: Fetch categories and services from Supabase
                 const { data: categories, error: categoriesError } = await supabase
                     .from('categories')
                     .select('*')
                     .order('id');
-                
                 if (categoriesError) throw categoriesError;
-                
-                // جلب الخدمات من Supabase
+
                 const { data: services, error: servicesError } = await supabase
                     .from('services')
                     .select('*')
                     .order('id');
-                
                 if (servicesError) throw servicesError;
-                
-                // جلب الطلبات الخاصة بالمستخدم
-                const { data: ordersData, error: ordersError } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('user_id', telegramUserId);
-                
-                if (ordersError) console.error('Error fetching orders:', ordersError);
-                
-                // تعبئة البيانات في gData
-                gData.user = userData || {
-                    id: telegramUserId,
-                    balance: 0,
-                    username: 'مستخدم'
-                };
-                
-                gData.orders = ordersData || [];
+
                 gData.categories = categories || [];
                 gData.services = services || [];
-                
+
+                // Step 3: Render the app with combined data
                 renderApp();
-                
+
             } catch (error) {
                 console.error('Error fetching initial data:', error);
-                mainCategoriesSection.innerHTML = `
-                    <div class="text-center text-red-500 p-4 bg-red-100 rounded-lg">
-                        <p class="font-bold">حدث خطأ أثناء تحميل البيانات.</p>
-                        <p class="mt-2 text-sm">التفاصيل:</p>
-                        <pre class="mt-1 text-xs text-left bg-gray-100 p-2 rounded text-red-700 whitespace-pre-wrap">${error.message}</pre>
-                    </div>
-                `;
+                mainCategoriesSection.innerHTML = `<p class="text-center text-red-500">حدث خطأ أثناء تحميل البيانات.</p>`;
             } finally {
                 loader.style.display = 'none';
                 appContent.classList.remove('hidden');
@@ -415,70 +388,37 @@
             }
         }
 
-        // دالة لاستخراج معرف المستخدم من بيانات Telegram
-        function extractTelegramUserId(initData) {
-            try {
-                const params = new URLSearchParams(initData);
-                const userStr = params.get('user');
-                if (userStr) {
-                    const user = JSON.parse(userStr);
-                    return user.id;
-                }
-                return 'unknown';
-            } catch (e) {
-                console.error('Error parsing Telegram user data:', e);
-                return 'unknown';
-            }
-        }
-
-        // دالة للحصول على صورة التصنيف الفرعي من الخدمات المرتبطة به
         function getSubCategoryImage(categoryId) {
-            // البحث عن أول خدمة مرتبطة بهذا التصنيف
             const service = gData.services.find(s => s.category_id === categoryId && s.category_img);
-            
-            // إذا وجدت خدمة بها صورة، نستخدمها
             if (service && service.category_img) {
                 return service.category_img;
             }
-            
-            // إذا لم توجد صورة، نستخدم صورة افتراضية
             const category = gData.categories.find(c => c.id === categoryId);
             return `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(category?.name || 'تصنيف')}`;
         }
 
-        // دالة لإنشاء مسار التصفح (Breadcrumb)
         function generateBreadcrumb(categoryId, container) {
             if (!container) return;
-            
             container.innerHTML = '';
-            
-            // إضافة الرابط الرئيسي
             const homeItem = document.createElement('div');
             homeItem.className = 'breadcrumb-item';
             homeItem.innerHTML = `<span class="breadcrumb-link" data-category-id="home">الرئيسية</span>`;
             container.appendChild(homeItem);
-            
-            // إذا كان هناك معرف تصنيف، نبحث عن مساره
+
             if (categoryId) {
                 const path = getCategoryPath(categoryId);
-                
                 path.forEach((cat, index) => {
                     const item = document.createElement('div');
                     item.className = 'breadcrumb-item';
-                    
                     if (index === path.length - 1) {
-                        // آخر عنصر في المسار (لا يكون رابطاً)
                         item.innerHTML = `<span class="breadcrumb-current">${cat.name}</span>`;
                     } else {
-                        // عنصر وسطي (يكون رابطاً)
                         item.innerHTML = `<span class="breadcrumb-link" data-category-id="${cat.id}">${cat.name}</span>`;
                     }
-                    
                     container.appendChild(item);
                 });
             }
             
-            // إضافة مستمعي الأحداث للروابط
             const breadcrumbLinks = container.querySelectorAll('.breadcrumb-link');
             breadcrumbLinks.forEach(link => {
                 link.addEventListener('click', () => {
@@ -492,21 +432,18 @@
             });
         }
 
-        // دالة للحصول على المسار الكامل للتصنيف
         function getCategoryPath(categoryId) {
             const path = [];
             let currentId = categoryId;
-            
             while (currentId) {
                 const category = gData.categories.find(c => c.id === currentId);
                 if (category) {
-                    path.unshift(category); // إضافة في البداية للحفاظ على الترتيب
+                    path.unshift(category);
                     currentId = category.parent_id;
                 } else {
                     break;
                 }
             }
-            
             return path;
         }
 
@@ -517,7 +454,7 @@
 
         function renderUserInfo() {
             if (gData.user) {
-                userBalanceEl.textContent = `$${gData.user.balance || 0}`;
+                userBalanceEl.textContent = `$${gData.user.balance || '0.00'}`;
                 userIdDisplayEl.textContent = gData.user.id;
             }
         }
@@ -527,8 +464,8 @@
             subCategoriesSection.classList.add('hidden');
             servicesSection.classList.add('hidden');
             serviceDetailsSection.classList.add('hidden');
+            mainCategoriesSection.classList.remove('hidden');
             
-            // مسح مسار التصفح
             gData.breadcrumb = [];
             
             const mainCategories = gData.categories.filter(c => c.parent_id === null);
@@ -536,7 +473,6 @@
                 const catElement = document.createElement('a');
                 catElement.href = '#';
                 catElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                // استخدام الصورة من قاعدة البيانات إذا كانت متاحة
                 const bgImage = cat.category_img || `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(cat.name)}`;
                 catElement.style.backgroundImage = `url('${bgImage}')`;
                 catElement.dataset.categoryId = cat.id;
@@ -557,19 +493,15 @@
             const parentCategory = gData.categories.find(c => c.id === parentId);
             subCategoriesTitle.textContent = parentCategory?.name || 'التصنيفات الفرعية';
             
-            // إنشاء مسار التصفح
             generateBreadcrumb(parentId, breadcrumbContainer);
             
             const subCategories = gData.categories.filter(c => c.parent_id === parentId);
 
             if (subCategories.length > 0) {
                 subCategories.forEach(cat => {
-                    // إنشاء بطاقة التصنيف الفرعي بنفس نمط التصنيفات الرئيسية
                     const subCatElement = document.createElement('a');
                     subCatElement.href = '#';
                     subCatElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                    
-                    // استخدام صورة من الخدمات المرتبطة بهذا التصنيف
                     const bgImage = getSubCategoryImage(cat.id);
                     subCatElement.style.backgroundImage = `url('${bgImage}')`;
                     subCatElement.dataset.categoryId = cat.id;
@@ -591,11 +523,11 @@
         }
 
         function renderServices(categoryId) {
+            currentParentId = categoryId;
             servicesContainer.innerHTML = '';
             const category = gData.categories.find(c => c.id === categoryId);
             servicesTitle.textContent = category?.name || 'الخدمات';
             
-            // إنشاء مسار التصفح للخدمات
             generateBreadcrumb(categoryId, breadcrumbServicesContainer);
             
             const services = gData.services.filter(s => s.category_id === categoryId && s.available !== false);
@@ -606,10 +538,7 @@
                     serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
                     serviceElement.style.animationDelay = `${index * 0.1}s`;
                     
-                    // استخدام السعر المناسب (السعر الأساسي أو السعر العادي)
                     const price = service.base_price || service.price;
-                    
-                    // استخدام صورة الخدمة من قاعدة البيانات إذا كانت متاحة
                     const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
                     
                     serviceElement.innerHTML = `
@@ -622,178 +551,110 @@
                     servicesContainer.appendChild(serviceElement);
                     setTimeout(() => serviceElement.classList.add('fade-in'), 10);
                 });
-                mainCategoriesSection.classList.add('hidden');
-                subCategoriesSection.classList.add('hidden');
-                servicesSection.classList.remove('hidden');
-                serviceDetailsSection.classList.add('hidden');
             } else {
                 servicesContainer.innerHTML = '<p class="text-center col-span-1 md:col-span-2">لا توجد خدمات في هذا التصنيف.</p>';
-                mainCategoriesSection.classList.add('hidden');
-                subCategoriesSection.classList.add('hidden');
-                servicesSection.classList.remove('hidden');
-                serviceDetailsSection.classList.add('hidden');
             }
+            mainCategoriesSection.classList.add('hidden');
+            subCategoriesSection.classList.add('hidden');
+            servicesSection.classList.remove('hidden');
+            serviceDetailsSection.classList.add('hidden');
         }
 
-        // دالة لعرض تفاصيل الخدمة وصفحة الشراء
         function renderServiceDetails(serviceId) {
-            // البحث عن الخدمة المحددة
             const service = gData.services.find(s => s.id == serviceId);
             if (!service) return;
             
             currentService = service;
             
-            // استخدام السعر الأساسي
-            const basePrice = service.base_price || service.price;
-            
-            // استخدام صورة الخدمة من قاعدة البيانات إذا كانت متاحة
+            const basePrice = parseFloat(service.base_price || service.price);
             const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
             
-            // إنشاء مسار التصفح لتفاصيل الخدمة
             generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
             
-            // تحليل params إذا كانت موجودة
             let paramsData = [];
             try {
-                if (service.params) {
-                    paramsData = JSON.parse(service.params);
-                }
-            } catch (e) {
-                console.error('Error parsing params:', e);
-            }
+                if (service.params) paramsData = JSON.parse(service.params);
+            } catch (e) { console.error('Error parsing params:', e); }
             
-            // تحليل qty_values إذا كانت موجودة
             let qtyValues = null;
             try {
-                if (service.qty_values) {
-                    qtyValues = JSON.parse(service.qty_values);
-                }
-            } catch (e) {
-                console.error('Error parsing qty_values:', e);
-            }
+                if (service.qty_values) qtyValues = JSON.parse(service.qty_values);
+            } catch (e) { console.error('Error parsing qty_values:', e); }
             
-            // بناء واجهة تفاصيل الخدمة
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
                     <img src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
                     <h2 class="text-2xl font-bold text-dark-green mb-2">${service.name}</h2>
-                    <p class="text-gray-600 mb-4">${service.description || ''}</p>
-                    
-                    <!-- عرض حقول الإدخال إذا كان هناك params -->
-            `;
+                    <p class="text-gray-600 mb-4">${service.description || ''}</p>`;
             
-            // إضافة حقول الإدخال بناءً على params
             if (paramsData && paramsData.length > 0) {
-                serviceDetailsHTML += `<div class="w-full mb-4 space-y-3">`;
-                serviceDetailsHTML += `<h3 class="text-lg font-semibold text-dark-green">المعلومات المطلوبة:</h3>`;
-                
+                serviceDetailsHTML += `<div class="w-full mb-4 space-y-3"><h3 class="text-lg font-semibold text-dark-green">المعلومات المطلوبة:</h3>`;
                 paramsData.forEach((param, index) => {
                     serviceDetailsHTML += `
                         <div>
                             <label for="param-${index}" class="block text-sm font-medium text-gray-700 mb-1">${param}</label>
                             <input type="text" id="param-${index}" class="w-full p-2 border border-gray-300 rounded-md" placeholder="أدخل ${param}" required>
-                        </div>
-                    `;
+                        </div>`;
                 });
-                
                 serviceDetailsHTML += `</div>`;
             }
             
-            // معالجة أنواع المنتجات المختلفة
             if (service.product_type === "package") {
                 if (qtyValues) {
-                    // إذا كان qty_values مصفوفة (قائمة قيم)
                     if (Array.isArray(qtyValues)) {
-                        serviceDetailsHTML += `
-                            <div class="w-full mb-4">
-                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
-                                <select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">
-                        `;
-                        
-                        qtyValues.forEach(value => {
-                            serviceDetailsHTML += `<option value="${value}">${value}</option>`;
-                        });
-                        
-                        serviceDetailsHTML += `
-                                </select>
-                            </div>
-                        `;
-                    } 
-                    // إذا كان qty_values كائن (min و max)
-                    else if (typeof qtyValues === 'object' && qtyValues.min && qtyValues.max) {
-                        serviceDetailsHTML += `
-                            <div class="w-full mb-4">
-                                <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label>
-                                <input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md">
-                            </div>
-                        `;
+                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">`;
+                        qtyValues.forEach(value => { serviceDetailsHTML += `<option value="${value}">${value}</option>`; });
+                        serviceDetailsHTML += `</select></div>`;
+                    } else if (typeof qtyValues === 'object' && qtyValues.min && qtyValues.max) {
+                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label><input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
                     }
                 } else {
-                    // إذا لم يكن هناك qty_values، نستخدم حقل إدخال عادي
-                    serviceDetailsHTML += `
-                        <div class="w-full mb-4">
-                            <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label>
-                            <input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md">
-                        </div>
-                    `;
+                    serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
                 }
             } else {
-                // إذا لم يكن package، نستخدم الكمية الافتراضية (1)
                 serviceDetailsHTML += `<input type="hidden" id="quantity" value="1">`;
             }
             
-            // إضافة قسم السعر
             serviceDetailsHTML += `
                 <div class="w-full mb-4 p-3 bg-gray-100 rounded-lg">
                     <div class="flex justify-between items-center">
                         <span class="text-lg font-semibold">السعر:</span>
-                        <span id="total-price" class="text-xl font-bold text-dark-green">$${basePrice}</span>
+                        <span id="total-price" class="text-xl font-bold text-dark-green">$${basePrice.toFixed(2)}</span>
                     </div>
                 </div>
-                
-                <button id="confirm-purchase" class="w-full py-3 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300">
-                    تأكيد الطلب
-                </button>
-            `;
+                <button id="confirm-purchase" class="w-full py-3 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300">تأكيد الطلب</button></div>`;
             
             serviceDetailsContainer.innerHTML = serviceDetailsHTML;
             
-            // إضافة مستمع الحدث لحساب السعر عند تغيير الكمية
             const quantityInput = document.getElementById('quantity');
             if (quantityInput) {
                 quantityInput.addEventListener('change', calculateTotalPrice);
                 quantityInput.addEventListener('input', calculateTotalPrice);
             }
             
-            // إضافة مستمع الحدث لتأكيد الشراء
             document.getElementById('confirm-purchase').addEventListener('click', confirmPurchase);
             
-            // إظهار قسم تفاصيل الخدمة وإخفاء الأقسام الأخرى
             mainCategoriesSection.classList.add('hidden');
             subCategoriesSection.classList.add('hidden');
             servicesSection.classList.add('hidden');
             serviceDetailsSection.classList.remove('hidden');
         }
 
-        // دالة لحساب السعر الإجمالي
         function calculateTotalPrice() {
             const quantityInput = document.getElementById('quantity');
             const totalPriceElement = document.getElementById('total-price');
-            
             if (!quantityInput || !totalPriceElement || !currentService) return;
             
             const quantity = parseInt(quantityInput.value, 10) || 1;
-            const basePrice = currentService.base_price || currentService.price;
+            const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
             totalPriceElement.textContent = `$${totalPrice.toFixed(2)}`;
         }
 
-        // دالة لتأكيد عملية الشراء
         async function confirmPurchase() {
             if (!currentService) return;
             
-            // جمع البيانات من النموذج
             const paramsData = [];
             try {
                 if (currentService.params) {
@@ -801,78 +662,61 @@
                     paramsArray.forEach((param, index) => {
                         const input = document.getElementById(`param-${index}`);
                         if (input && input.value.trim()) {
-                            paramsData.push({
-                                name: param,
-                                value: input.value.trim()
-                            });
+                            paramsData.push({ name: param, value: input.value.trim() });
+                        } else {
+                            throw new Error(`Please fill out the ${param} field.`);
                         }
                     });
                 }
             } catch (e) {
-                console.error('Error parsing params:', e);
+                alert(e.message);
+                return;
             }
             
             const quantityInput = document.getElementById('quantity');
             const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-            const basePrice = currentService.base_price || currentService.price;
+            const basePrice = parseFloat(currentService.base_price || currentService.price);
             const totalPrice = basePrice * quantity;
             
-            // التحقق من أن المستخدم لديه رصيد كافٍ
-            if (gData.user.balance < totalPrice) {
+            if (parseFloat(gData.user.balance) < totalPrice) {
                 alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
                 return;
             }
             
-            // إنشاء الطلب
             try {
-                const { data, error } = await supabase
-                    .from('orders')
-                    .insert([
-                        {
-                            user_id: gData.user.id,
-                            service_id: currentService.id,
-                            quantity: quantity,
-                            total_price: totalPrice,
-                            status: 'pending',
-                            params: paramsData.length > 0 ? JSON.stringify(paramsData) : null,
-                            created_at: new Date().toISOString()
-                        }
-                    ])
-                    .select();
-                
-                if (error) throw error;
-                
-                // تحديث رصيد المستخدم
-                const newBalance = gData.user.balance - totalPrice;
-                const { error: updateError } = await supabase
-                    .from('users')
-                    .update({ balance: newBalance })
-                    .eq('telegram_id', gData.user.id);
-                
-                if (updateError) throw updateError;
-                
-                // تحديث بيانات المستخدم المحلية
-                gData.user.balance = newBalance;
-                renderUserInfo();
-                
-                alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
-                
-                // العودة إلى قائمة الخدمات
-                renderServices(currentService.category_id);
-                
+                const response = await fetch('/api/create_order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        initData: gData.initData,
+                        service_id: currentService.id,
+                        quantity: quantity,
+                        total_price: totalPrice,
+                        params: paramsData
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    gData.user.balance = result.new_balance;
+                    renderUserInfo();
+                    alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
+                    renderServices(currentService.category_id);
+                } else {
+                    throw new Error(result.error || 'Failed to create order.');
+                }
             } catch (error) {
                 console.error('Error creating order:', error);
-                alert('حدث خطأ أثناء تأكيد الطلب. يرجى المحاولة مرة أخرى.');
+                alert(`حدث خطأ أثناء تأكيد الطلب: ${error.message}`);
             }
         }
 
-        // إضافة مستمعي الأحداث
         mainCategoriesContainer.addEventListener('click', (e) => {
             const categoryCard = e.target.closest('.category-card');
             if (categoryCard) {
                 e.preventDefault();
-                const categoryId = parseInt(categoryCard.dataset.categoryId, 10);
-                renderSubCategories(categoryId);
+                renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
             }
         });
 
@@ -880,8 +724,7 @@
             const categoryCard = e.target.closest('.category-card');
             if (categoryCard) {
                 e.preventDefault();
-                const categoryId = parseInt(categoryCard.dataset.categoryId, 10);
-                renderSubCategories(categoryId);
+                renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
             }
         });
 
@@ -889,20 +732,17 @@
             const serviceDetailsBtn = e.target.closest('.service-details-btn');
             if (serviceDetailsBtn) {
                 e.preventDefault();
-                const serviceId = parseInt(serviceDetailsBtn.dataset.serviceId, 10);
-                renderServiceDetails(serviceId);
+                renderServiceDetails(parseInt(serviceDetailsBtn.dataset.serviceId, 10));
             }
         });
 
-        backToHomeBtn.addEventListener('click', () => {
-            renderMainCategories();
-        });
+        backToHomeBtn.addEventListener('click', () => renderMainCategories());
 
         backToSubcategoriesBtn.addEventListener('click', () => {
-            if (currentParentId) {
-                const parentCategory = gData.categories.find(c => c.id === currentParentId);
-                if (parentCategory && parentCategory.parent_id) {
-                    renderSubCategories(parentCategory.parent_id);
+             if (currentParentId) {
+                const category = gData.categories.find(c => c.id === currentParentId);
+                if (category && category.parent_id) {
+                    renderSubCategories(category.parent_id);
                 } else {
                     renderMainCategories();
                 }
