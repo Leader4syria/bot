@@ -572,14 +572,28 @@
             generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
             
             let paramsData = [];
-            try {
-                if (service.params) paramsData = JSON.parse(service.params);
-            } catch (e) { console.error('Error parsing params:', e); }
+            if (service.params) {
+                try {
+                    paramsData = JSON.parse(service.params);
+                } catch (e) {
+                    console.error(`Could not parse service.params: "${service.params}". Treating as a single parameter.`, e);
+                    // If it's a non-empty string, treat it as a single parameter in an array.
+                    if (typeof service.params === 'string' && service.params.trim() !== '') {
+                        paramsData = [service.params];
+                    }
+                }
+            }
             
             let qtyValues = null;
-            try {
-                if (service.qty_values) qtyValues = JSON.parse(service.qty_values);
-            } catch (e) { console.error('Error parsing qty_values:', e); }
+            if (service.qty_values) {
+                try {
+                    qtyValues = JSON.parse(service.qty_values);
+                } catch (e) {
+                    console.error(`Could not parse service.qty_values: "${service.qty_values}".`, e);
+                    // If parsing fails, we can decide on a fallback, but for now we'll leave it as null
+                    // as the downstream code handles null values.
+                }
+            }
             
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
