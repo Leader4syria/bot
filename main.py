@@ -15,7 +15,6 @@ from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLA
 import hmac
 import hashlib
 import json
-from sqlalchemy.orm import joinedload
 from urllib.parse import parse_qsl
 
 app = Flask(__name__, static_folder='web')
@@ -160,7 +159,15 @@ def get_webapp_data():
                 user = s.query(User).filter_by(telegram_id=user_id).first()
 
             # Fetch user and order data
-            orders_q = s.query(Order).options(joinedload(Order.service)).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
+            orders_q = s.query(Order).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
+
+            # Get all unique service IDs from the orders
+            service_ids = {o.service_id for o in orders_q}
+
+            # Fetch all corresponding services in a single query
+            services = s.query(Service).filter(Service.id.in_(service_ids)).all()
+            service_map = {service.id: service.name for service in services}
+
 
             # Serialize data into a clean format for the frontend
             user_info = {
@@ -172,7 +179,7 @@ def get_webapp_data():
             orders_info = [
                 {
                     "id": o.id,
-                    "service_name": o.service.name if o.service else "Unknown Service",
+                    "service_name": service_map.get(o.service_id, f"خدمة غير معروفة ({o.service_id})"),
                     "quantity": o.quantity,
                     "total_price": f"{o.total_price:.2f}",
                     "status": o.status,
