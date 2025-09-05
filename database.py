@@ -97,7 +97,6 @@ class Order(Base):
     status = Column(String, default='Pending')
     ordered_at = Column(DateTime, default=datetime.now)
     provider_order_id = Column(String, nullable=True)
-    params = Column(Text, nullable=True)
 
     def __repr__(self):
         return f"<Order(id={self.id}, user_id={self.user_id}, service_id={self.service_id}, status='{self.status}')>"

@@ -242,9 +242,9 @@ def create_order():
                 user_id=user.telegram_id,
                 service_id=service_id, # This ID comes from Supabase
                 quantity=quantity,
+                link_or_id=json.dumps(params_data, ensure_ascii=False) if params_data else "No Params",
                 total_price=total_price,
                 status='pending',
-                params=json.dumps(params_data, ensure_ascii=False) if params_data else None,
                 ordered_at=datetime.now()
             )
             s.add(new_order)
