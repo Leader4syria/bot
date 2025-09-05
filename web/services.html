@@ -655,11 +655,22 @@
             const quantityInput = document.getElementById('quantity');
             const totalPriceElement = document.getElementById('total-price');
             if (!quantityInput || !totalPriceElement || !currentService) return;
-            
-            const quantity = parseInt(quantityInput.value, 10) || 1;
+
             const basePrice = parseFloat(currentService.base_price || currentService.price);
-            const totalPrice = basePrice * quantity;
-            
+
+            // For default product type, price is fixed.
+            if (currentService.product_type === 'default') {
+                totalPriceElement.textContent = `$${basePrice.toFixed(2)}`;
+                return;
+            }
+
+            // For package product type, calculate price based on quantity.
+            const quantity = parseInt(quantityInput.value, 10) || 0;
+            const baseQuantity = parseInt(currentService.base_quantity, 10) || 1; // Default to 1 to avoid division by zero
+
+            const pricePerUnit = basePrice / baseQuantity;
+            const totalPrice = pricePerUnit * quantity;
+
             totalPriceElement.textContent = `$${totalPrice.toFixed(2)}`;
         }
 
@@ -667,10 +678,10 @@
             if (!currentService) return;
             
             const paramsData = [];
-            try {
-                if (currentService.params) {
+            if (currentService.params) {
+                 try {
                     const paramsArray = JSON.parse(currentService.params);
-                    paramsArray.forEach((param, index) => {
+                     paramsArray.forEach((param, index) => {
                         const input = document.getElementById(`param-${index}`);
                         if (input && input.value.trim()) {
                             paramsData.push({ name: param, value: input.value.trim() });
@@ -678,16 +689,30 @@
                             throw new Error(`Please fill out the ${param} field.`);
                         }
                     });
+                } catch(e) {
+                    if(typeof currentService.params === 'string') {
+                         const input = document.getElementById(`param-0`);
+                         if (input && input.value.trim()) {
+                            paramsData.push({ name: currentService.params, value: input.value.trim() });
+                        } else {
+                            throw new Error(`Please fill out the ${currentService.params} field.`);
+                        }
+                    }
                 }
-            } catch (e) {
-                alert(e.message);
-                return;
             }
-            
+
             const quantityInput = document.getElementById('quantity');
             const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
             const basePrice = parseFloat(currentService.base_price || currentService.price);
-            const totalPrice = basePrice * quantity;
+            let totalPrice;
+
+            if (currentService.product_type === 'default') {
+                totalPrice = basePrice;
+            } else { // For package type
+                const baseQuantity = parseInt(currentService.base_quantity, 10) || 1;
+                const pricePerUnit = basePrice / baseQuantity;
+                totalPrice = pricePerUnit * quantity;
+            }
             
             if (parseFloat(gData.user.balance) < totalPrice) {
                 alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
@@ -710,7 +735,8 @@
                 const result = await response.json();
 
                 if (result.ok) {
-                    gData.user.balance = result.new_balance;
+                    const newBalance = parseFloat(result.new_balance);
+                    gData.user.balance = newBalance.toFixed(2);
                     renderUserInfo();
                     alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
                     renderServices(currentService.category_id);
