@@ -15,6 +15,7 @@ from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLA
 import hmac
 import hashlib
 import json
+import traceback
 from urllib.parse import parse_qsl
 
 app = Flask(__name__, static_folder='web')
@@ -161,12 +162,12 @@ def get_webapp_data():
             # Fetch user and order data
             orders_q = s.query(Order).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
 
-            # Get all unique service IDs from the orders
+            service_map = {}
             service_ids = {o.service_id for o in orders_q}
-
-            # Fetch all corresponding services in a single query
-            services = s.query(Service).filter(Service.id.in_(service_ids)).all()
-            service_map = {service.id: service.name for service in services}
+            if service_ids:
+                # Fetch all corresponding services in a single query
+                services = s.query(Service).filter(Service.id.in_(service_ids)).all()
+                service_map = {service.id: service.name for service in services}
 
 
             # Serialize data into a clean format for the frontend
@@ -195,7 +196,7 @@ def get_webapp_data():
         finally:
             s.close()
     except Exception as e:
-        print(f"Error in get_webapp_data: {e}")
+        print(f"Error in get_webapp_data: {e}\n{traceback.format_exc()}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
 
 @app.route('/api/create_order', methods=['POST'])
