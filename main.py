@@ -221,8 +221,9 @@ def create_order():
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
         params_data = request.json.get('params')
+        link_or_id = request.json.get('link_or_id')
 
-        if not all([service_id, quantity, total_price]):
+        if not all([service_id, quantity, total_price, link_or_id]):
              return jsonify({"ok": False, "error": "Missing order details"}), 400
 
         s = Session()
@@ -240,11 +241,12 @@ def create_order():
 
             new_order = Order(
                 user_id=user.telegram_id,
-                service_id=service_id, # This ID comes from Supabase
+                service_id=service_id,
                 quantity=quantity,
-                link_or_id=json.dumps(params_data, ensure_ascii=False) if params_data else "No Params",
+                link_or_id=link_or_id,
                 total_price=total_price,
                 status='pending',
+                params=json.dumps(params_data, ensure_ascii=False) if params_data else None,
                 ordered_at=datetime.now()
             )
             s.add(new_order)
