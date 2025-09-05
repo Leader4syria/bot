@@ -577,7 +577,6 @@
                     paramsData = JSON.parse(service.params);
                 } catch (e) {
                     console.error(`Could not parse service.params: "${service.params}". Treating as a single parameter.`, e);
-                    // If it's a non-empty string, treat it as a single parameter in an array.
                     if (typeof service.params === 'string' && service.params.trim() !== '') {
                         paramsData = [service.params];
                     }
@@ -590,8 +589,6 @@
                     qtyValues = JSON.parse(service.qty_values);
                 } catch (e) {
                     console.error(`Could not parse service.qty_values: "${service.qty_values}".`, e);
-                    // If parsing fails, we can decide on a fallback, but for now we'll leave it as null
-                    // as the downstream code handles null values.
                 }
             }
             

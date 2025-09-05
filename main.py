@@ -76,13 +76,20 @@ def start_telegram_bot():
             time.sleep(10)
 
 def is_valid_init_data(init_data_str: str, bot_token: str) -> (bool, dict):
+    """
+    Validates the initData string from the Telegram Web App using a more
+    robust parsing method that handles URL-encoded values.
+    """
     try:
+        # Use parse_qsl which handles URL decoding of keys and values.
+        # It returns a list of (key, value) tuples.
         parsed_qsl = parse_qsl(init_data_str)
 
         hash_from_telegram = None
         data_for_check_tuples = []
         user_data_str = None
 
+        # Separate the hash from the rest of the data
         for key, value in parsed_qsl:
             if key == 'hash':
                 hash_from_telegram = value
@@ -94,9 +101,11 @@ def is_valid_init_data(init_data_str: str, bot_token: str) -> (bool, dict):
         if not hash_from_telegram or not user_data_str:
             return False, None
 
+        # The data_check_string is formed from the decoded key-value pairs, sorted.
         sorted_tuples = sorted(data_for_check_tuples, key=lambda x: x[0])
         data_check_string = "\n".join([f"{k}={v}" for k, v in sorted_tuples])
 
+        # The rest of the hashing logic remains the same
         secret_key = hmac.new("WebAppData".encode(), bot_token.encode(), hashlib.sha256).digest()
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
@@ -107,6 +116,7 @@ def is_valid_init_data(init_data_str: str, bot_token: str) -> (bool, dict):
         print("--- END DEBUG ---")
 
         if calculated_hash == hash_from_telegram:
+            # The user data string from parse_qsl is already URL-decoded.
             user_data = json.loads(user_data_str)
             return True, user_data
 
@@ -117,6 +127,10 @@ def is_valid_init_data(init_data_str: str, bot_token: str) -> (bool, dict):
 
 @app.route('/api/webapp/data', methods=['POST'])
 def get_webapp_data():
+    """
+    API endpoint to fetch all necessary data for the web app.
+    Authenticates the user using the initData from Telegram.
+    """
     try:
         init_data_str = request.json.get('initData')
         if not init_data_str:
@@ -133,24 +147,30 @@ def get_webapp_data():
         try:
             user = s.query(User).filter_by(telegram_id=user_id).first()
             if not user:
+                 # If user does not exist, create them
                 user = User(
                     telegram_id=user_id,
                     full_name=user_data.get('first_name', '') + ' ' + user_data.get('last_name', ''),
                     username=user_data.get('username'),
-                    balance=0.0
+                    balance=0.0 # Default balance
                 )
                 s.add(user)
                 s.commit()
+                # Re-fetch user to get ID and other defaults
                 user = s.query(User).filter_by(telegram_id=user_id).first()
 
+            # Fetch user and order data
             orders_q = s.query(Order).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
 
             service_map = {}
             service_ids = {o.service_id for o in orders_q}
             if service_ids:
+                # Fetch all corresponding services in a single query
                 services = s.query(Service).filter(Service.id.in_(service_ids)).all()
                 service_map = {service.id: service.name for service in services}
 
+
+            # Serialize data into a clean format for the frontend
             user_info = {
                 "id": user.telegram_id,
                 "full_name": user.full_name,
@@ -164,8 +184,7 @@ def get_webapp_data():
                     "quantity": o.quantity,
                     "total_price": f"{o.total_price:.2f}",
                     "status": o.status,
-                    "ordered_at": o.ordered_at.strftime('%Y-%m-%d %H:%M'),
-                    "link_or_id": o.link_or_id  # تم التغيير هنا
+                    "ordered_at": o.ordered_at.strftime('%Y-%m-%d %H:%M')
                 } for o in orders_q
             ]
 
@@ -182,6 +201,10 @@ def get_webapp_data():
 
 @app.route('/api/create_order', methods=['POST'])
 def create_order():
+    """
+    API endpoint to create a new order in the local database.
+    Authenticates the user, checks balance, creates order, and updates balance.
+    """
     try:
         init_data_str = request.json.get('initData')
         if not init_data_str:
@@ -193,13 +216,14 @@ def create_order():
 
         user_id = user_data.get('id')
 
+        # Get order details from request
         service_id = request.json.get('service_id')
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
-        link_or_id_data = request.json.get('params')  # استخدم params من الطلب لملء link_or_id
+        params_data = request.json.get('params')
 
         if not all([service_id, quantity, total_price]):
-            return jsonify({"ok": False, "error": "Missing order details"}), 400
+             return jsonify({"ok": False, "error": "Missing order details"}), 400
 
         s = Session()
         try:
@@ -207,16 +231,20 @@ def create_order():
             if not user:
                 return jsonify({"ok": False, "error": "User not found"}), 404
 
+            # The service is from Supabase, so we can't query it here.
+            # We trust the client to send the correct price.
+            # A potential improvement would be to have a shared secret or a server-to-server call to verify the price.
+
             if user.balance < float(total_price):
                 return jsonify({"ok": False, "error": "Insufficient balance"}), 400
 
             new_order = Order(
                 user_id=user.telegram_id,
-                service_id=service_id,
+                service_id=service_id, # This ID comes from Supabase
                 quantity=quantity,
+                link_or_id=json.dumps(params_data, ensure_ascii=False) if params_data else "No Params",
                 total_price=total_price,
                 status='pending',
-                link_or_id=link_or_id_data,  # تم التغيير هنا
                 ordered_at=datetime.now()
             )
             s.add(new_order)
@@ -255,6 +283,7 @@ if __name__ == "__main__":
         s.commit()
     s.close()
 
+    # Set up ngrok tunnel
     NGROK_AUTH_TOKEN = os.environ.get("NGROK_AUTH_TOKEN")
     if NGROK_AUTH_TOKEN:
         conf.get_default().auth_token = NGROK_AUTH_TOKEN
@@ -273,6 +302,7 @@ if __name__ == "__main__":
     backup_thread.daemon = True
     backup_thread.start()
 
+    server_url = f"http://YOUR_SERVER_IP:{FLASK_PORT}"
     print("✅ تم تشغيل المشروع بنجاح!")
     print(f"لوحة التحكم: {config.WEBAPP_URL}/admin")
     print(f"رابط API: {config.WEBAPP_URL}/api")

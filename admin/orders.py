@@ -9,10 +9,8 @@ import traceback
 def admin_orders():
     try:
         s = Session()
-        # Remove joinedload for service, but keep it for user
         orders = s.query(Order).options(joinedload(Order.user)).order_by(Order.ordered_at.desc()).all()
 
-        # Efficiently fetch service details
         service_ids = {o.service_id for o in orders}
         if service_ids:
             services = s.query(Service).filter(Service.id.in_(service_ids)).all()
@@ -20,7 +18,6 @@ def admin_orders():
         else:
             service_map = {}
 
-        # Attach service object to each order
         for order in orders:
             order.service = service_map.get(order.service_id)
 
