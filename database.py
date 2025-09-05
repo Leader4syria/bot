@@ -53,8 +53,6 @@ class Service(Base):
     category_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
     link_instructions = Column(Text, nullable=True)
 
-    orders = relationship("Order", backref="service", lazy=True)
-
     def __repr__(self):
         return f"<Service(id={self.id}, name='{self.name}', price={self.base_price}, category_id={self.category_id})>"
 
@@ -92,7 +90,7 @@ class Order(Base):
     __tablename__ = 'orders'
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.telegram_id'), nullable=False)
-    service_id = Column(Integer, ForeignKey('services.id'), nullable=False)
+    service_id = Column(Integer, nullable=False)
     quantity = Column(Integer, nullable=False)
     link_or_id = Column(String, nullable=False)
     total_price = Column(Float, nullable=False)
