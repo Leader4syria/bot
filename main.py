@@ -254,6 +254,10 @@ def create_order():
 
             s.commit()
             order_id = new_order.id # Get the ID of the newly created order
+
+            # Get the new balance BEFORE closing the session
+            new_balance = user.balance
+
             s.close() # Close the session to avoid conflicts if the API call is slow
 
             # Start API Automation Logic in a new thread to avoid blocking
@@ -264,7 +268,6 @@ def create_order():
             automation_thread.start()
 
             # Return success response to the user immediately
-            new_balance = user.balance
             return jsonify({
                 "ok": True,
                 "message": "Order created successfully!",
