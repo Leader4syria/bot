@@ -304,7 +304,7 @@ def automate_order(order_id, user_id, service_id, service_name, link_or_id, tota
             print(f"Could not find order {order_id} to automate.")
             return
 
-        url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}"
+        url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}/params"
         headers = {'api-token': ORANOS_API_KEY}
         payload = {
             'qty': order.quantity,
