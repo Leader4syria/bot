@@ -231,9 +231,11 @@ def create_order():
             if not user:
                 return jsonify({"ok": False, "error": "User not found"}), 404
 
-            # The service is from Supabase, so we can't query it here.
-            # We trust the client to send the correct price.
-            # A potential improvement would be to have a shared secret or a server-to-server call to verify the price.
+            service = s.query(Service).filter_by(id=service_id).first()
+            if not service:
+                return jsonify({"ok": False, "error": "Service not found"}), 404
+
+            service_name = service.name
 
             if user.balance < float(total_price):
                 return jsonify({"ok": False, "error": "Insufficient balance"}), 400
@@ -254,6 +256,21 @@ def create_order():
             s.commit()
 
             new_balance = user.balance
+
+            # Send notification to admins
+            notification_message = f"🔔 طلب جديد من الموقع!\n\n"
+            notification_message += f"👤 المستخدم: {user.full_name or user.username} ({user.telegram_id})\n"
+            notification_message += f"🔹 الخدمة: {service_name}\n"
+            notification_message += f"🔹 معرف الخدمة: {service_id}\n"
+            notification_message += f"🔗 الرابط: {link_or_id}\n"
+            notification_message += f"💰 السعر: ${total_price:.2f}"
+
+
+            for admin_id in ADMIN_IDS:
+                try:
+                    bot.bot.send_message(admin_id, notification_message)
+                except Exception as e:
+                    print(f"Failed to send notification to admin {admin_id}: {e}")
 
             return jsonify({
                 "ok": True,
