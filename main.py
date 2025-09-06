@@ -304,16 +304,16 @@ def automate_order(order_id, user_id, service_id, service_name, link_or_id, tota
             print(f"Could not find order {order_id} to automate.")
             return
 
-        url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}/params"
+        url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}"
         headers = {'api-token': ORANOS_API_KEY}
-        params = {
+        payload = {
             'qty': order.quantity,
             'playerId': player_id,
             'order_uuid': order_uuid
         }
 
         try:
-            response = requests.post(url, headers=headers, params=params, timeout=30)
+            response = requests.post(url, headers=headers, data=payload, timeout=30)
             response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
 
             data = response.json()
