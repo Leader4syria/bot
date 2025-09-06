@@ -372,6 +372,98 @@ def automate_order(order_id, user_id, service_id, service_name, full_params, tot
     finally:
         s.close()
 
+def order_status_checker():
+    while True:
+        try:
+            print("🔍 Checking order statuses...")
+            s = Session()
+
+            in_progress_orders = s.query(Order).filter(
+                Order.status == 'In Progress',
+                Order.provider_order_id.isnot(None)
+            ).all()
+
+            if not in_progress_orders:
+                print("No in-progress orders to check.")
+                s.close()
+            else:
+                order_ids_to_check = [order.provider_order_id for order in in_progress_orders]
+                print(f"Checking status for order IDs: {order_ids_to_check}")
+
+                url = f"{ORANOS_API_URL}/client/api/check"
+                headers = {
+                    "api-token": ORANOS_API_KEY,
+                    "Accept": "application/json",
+                    "Connection": "keep-alive"
+                }
+                # The API expects the list of orders as a comma-separated string in the 'orders' parameter
+                params = {'orders': ','.join(order_ids_to_check)}
+
+                try:
+                    response = requests.get(url, headers=headers, params=params, timeout=30)
+                    response.raise_for_status()
+
+                    status_data = response.json()
+                    print(f"API response: {status_data}")
+
+                    if status_data.get("status") == "OK" and "data" in status_data:
+                        # Create a map of provider_order_id to local order object for easy lookup
+                        order_map = {order.provider_order_id: order for order in in_progress_orders}
+
+                        for status_info in status_data["data"]:
+                            provider_order_id = status_info.get("order_id")
+                            order_to_update = order_map.get(provider_order_id)
+
+                            if not order_to_update:
+                                continue
+
+                            new_status = status_info.get("status")
+                            if new_status == 'accept':
+                                service = s.query(Service).filter_by(id=order_to_update.service_id).first()
+                                service_name = service.name if service else "خدمة غير معروفة"
+
+                                order_to_update.status = 'Completed'
+                                s.commit()
+                                # Notify user of completion
+                                try:
+                                    completion_message = f"✅ اكتمل طلبك!\n\n"
+                                    completion_message += f"الخدمة: {service_name}\n"
+                                    completion_message += f"الكمية: {order_to_update.quantity}\n"
+                                    completion_message += f"شكراً لاستخدامك خدماتنا."
+                                    bot.bot.send_message(order_to_update.user_id, completion_message)
+                                except Exception as e:
+                                    print(f"Failed to send completion notification to user {order_to_update.user_id}: {e}")
+
+                            elif new_status == 'reject':
+                                service = s.query(Service).filter_by(id=order_to_update.service_id).first()
+                                service_name = service.name if service else "خدمة غير معروفة"
+
+                                order_to_update.status = 'Canceled'
+                                # Refund user
+                                user_to_refund = s.query(User).filter_by(telegram_id=order_to_update.user_id).first()
+                                if user_to_refund:
+                                    user_to_refund.balance += order_to_update.total_price
+                                    s.commit()
+                                    # Notify user of rejection and refund
+                                    try:
+                                        rejection_message = f"⚠️ تم رفض طلبك للخدمة '{service_name}'.\n\n"
+                                        rejection_message += "لا يمكنك طلب هذه الخدمة حالياً، حاول بعد ساعة. تم إعادة المبلغ إلى رصيدك."
+                                        bot.bot.send_message(order_to_update.user_id, rejection_message)
+                                    except Exception as e:
+                                        print(f"Failed to send rejection notification to user {order_to_update.user_id}: {e}")
+
+                except Exception as api_error:
+                    print(f"Failed to check order statuses: {api_error}")
+
+                s.close()
+
+        except Exception as e:
+            print(f"An error occurred in the order status checker: {e}")
+            traceback.print_exc()
+
+        # Wait for 5 minutes before the next check
+        time.sleep(300)
+
 if __name__ == "__main__":
     init_db()
 
@@ -400,6 +492,10 @@ if __name__ == "__main__":
     backup_thread = threading.Thread(target=backup_scheduler)
     backup_thread.daemon = True
     backup_thread.start()
+
+    status_checker_thread = threading.Thread(target=order_status_checker)
+    status_checker_thread.daemon = True
+    status_checker_thread.start()
 
     server_url = f"http://YOUR_SERVER_IP:{FLASK_PORT}"
     print("✅ تم تشغيل المشروع بنجاح!")
