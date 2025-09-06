@@ -794,6 +794,10 @@
                     <img loading="lazy" src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
                     <h2 class="text-2xl font-bold text-dark-green mb-2">${service.name}</h2>
                     <p class="text-gray-600 mb-4">${service.description || ''}</p>
+                    <div class="w-full mb-4">
+                        <label for="service-link-input" class="block text-sm font-medium text-gray-700 mb-1">الرابط أو المعرف</label>
+                        <input type="text" id="service-link-input" class="w-full p-2 border border-gray-300 rounded-md" placeholder="${service.link_instructions || 'يرجى إدخال الرابط أو المعرف'}" required>
+                    </div>
                 `;
             
             if (paramsData && Array.isArray(paramsData) && paramsData.length > 0) {
@@ -975,6 +979,13 @@
             return;
         }
 
+        const linkOrIdInput = document.getElementById('service-link-input');
+        if (!linkOrIdInput || !linkOrIdInput.value.trim()) {
+            logError('يرجى إدخال الرابط أو المعرف المطلوب.', new Error('Missing link or ID'));
+            return;
+        }
+        const link_or_id = linkOrIdInput.value.trim();
+
         let paramsData = {};
         
         let paramsToProcess = [];
@@ -1056,6 +1067,7 @@
                     service_id: currentService.id,
                     quantity: quantity,
                     total_price: totalPrice,
+                    link_or_id: link_or_id,
                     params: paramsData,
                     selected_option: selectedOptionValue // إرسال الخيار المحدد حتى لو كان نصيًا
                 }),
