@@ -218,11 +218,14 @@ def create_order():
 
         # Get order details from request
         service_id = request.json.get('service_id')
+        service_name = request.json.get('service_name')
+        # We trust the service_name from the client for the admin notification.
+        # The service_id is the source of truth for all internal order processing.
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
         link_or_id = request.json.get('link_or_id')
 
-        if not all([service_id, quantity, total_price, link_or_id]):
+        if not all([service_id, service_name, quantity, total_price, link_or_id]):
              return jsonify({"ok": False, "error": "Missing order details"}), 400
 
         s = Session()
@@ -230,12 +233,6 @@ def create_order():
             user = s.query(User).filter_by(telegram_id=user_id).first()
             if not user:
                 return jsonify({"ok": False, "error": "User not found"}), 404
-
-            service = s.query(Service).filter_by(id=service_id).first()
-            if not service:
-                return jsonify({"ok": False, "error": "Service not found"}), 404
-
-            service_name = service.name
 
             if user.balance < float(total_price):
                 return jsonify({"ok": False, "error": "Insufficient balance"}), 400
