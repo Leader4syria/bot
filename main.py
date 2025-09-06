@@ -220,7 +220,6 @@ def create_order():
         service_id = request.json.get('service_id')
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
-        params_data = request.json.get('params')
         link_or_id = request.json.get('link_or_id')
 
         if not all([service_id, quantity, total_price, link_or_id]):
@@ -246,7 +245,6 @@ def create_order():
                 link_or_id=link_or_id,
                 total_price=total_price,
                 status='pending',
-                params=json.dumps(params_data, ensure_ascii=False) if params_data else None,
                 ordered_at=datetime.now()
             )
             s.add(new_order)

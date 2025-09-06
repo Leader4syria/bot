@@ -992,30 +992,21 @@
             }
         }
 
-        if (paramsToProcess.length === 0) {
-            logError('This service requires at least one parameter (link/id), but none are configured.', new Error('Service configuration error'));
-            return;
-        }
-
-        // Assume the first parameter is the link/id
-        const linkParamName = paramsToProcess[0];
-        const linkInput = document.getElementById(linkParamName);
-        if (!linkInput || !linkInput.value.trim()) {
-            logError(`يرجى ملء حقل: ${linkParamName}`, new Error(`Missing required parameter: ${linkParamName}`));
-            return;
-        }
-        const link_or_id = linkInput.value.trim();
-
-        // Process the rest of the parameters
-        let paramsData = {};
-        const remainingParams = paramsToProcess.slice(1);
-        for (const param of remainingParams) {
+        const allParamValues = [];
+        for (const param of paramsToProcess) {
             const input = document.getElementById(param);
             if (!input || !input.value.trim()) {
                 logError(`يرجى ملء حقل: ${param}`, new Error(`Missing required parameter: ${param}`));
                 return;
             }
-            paramsData[param] = input.value.trim();
+            allParamValues.push(input.value.trim());
+        }
+
+        const link_or_id = allParamValues.join(',');
+
+        if (!link_or_id && paramsToProcess.length > 0) {
+             logError('يرجى ملء جميع الحقول المطلوبة.', new Error('Missing required parameters.'));
+             return;
         }
         
         let quantity;
@@ -1035,7 +1026,7 @@
                 quantity = parseFloat(selectedOptionValue);
             } else {
                 quantity = 1;
-                paramsData['selected_option'] = selectedOptionValue;
+                // The text option itself is now part of the link_or_id, so no need to send it separately
             }
         } else {
             const quantityInput = document.getElementById('quantity');
@@ -1065,9 +1056,7 @@
                     service_id: currentService.id,
                     quantity: quantity,
                     total_price: totalPrice,
-                    link_or_id: link_or_id,
-                    params: paramsData,
-                    selected_option: selectedOptionValue
+                    link_or_id: link_or_id
                 }),
             });
 
