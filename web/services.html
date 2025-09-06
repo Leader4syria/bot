@@ -385,6 +385,19 @@
         initData: null,
         breadcrumb: []
     };
+
+    const lazyImageObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const element = entry.target;
+                const bgImage = element.dataset.bgSrc;
+                if (bgImage) {
+                    element.style.backgroundImage = `url('${bgImage}')`;
+                }
+                observer.unobserve(element);
+            }
+        });
+    });
     
     const logs = [];
 
@@ -592,7 +605,7 @@
             catElement.href = '#';
             catElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
             const bgImage = cat.category_img || `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(cat.name)}`;
-            catElement.style.backgroundImage = `url('${bgImage}')`;
+            catElement.dataset.bgSrc = bgImage;
             catElement.dataset.categoryId = cat.id;
             catElement.innerHTML = `
                 <div class="category-card-overlay rounded-2xl"></div>
@@ -601,6 +614,7 @@
                 </div>
             `;
             mainCategoriesContainer.appendChild(catElement);
+            lazyImageObserver.observe(catElement);
         });
     }
 
@@ -630,7 +644,7 @@
                 if (item.item_type === 'category') {
                     element.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
                     const bgImage = getSubCategoryImage(item.id);
-                    element.style.backgroundImage = `url('${bgImage}')`;
+                    element.dataset.bgSrc = bgImage;
                     element.dataset.categoryId = item.id;
                     element.innerHTML = `
                         <div class="category-card-overlay rounded-2xl"></div>
@@ -642,7 +656,7 @@
                     const service = item;
                     const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
                     element.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                    element.style.backgroundImage = `url('${serviceImage}')`;
+                    element.dataset.bgSrc = serviceImage;
                     element.dataset.serviceId = service.id;
 
                     let overlayContent = '';
@@ -665,6 +679,7 @@
                     `;
                 }
                 subCategoriesContainer.appendChild(element);
+                lazyImageObserver.observe(element);
             });
 
             mainCategoriesSection.classList.add('hidden');
@@ -686,24 +701,46 @@
         
         generateBreadcrumb(categoryId, breadcrumbServicesContainer);
         
-        const services = gData.services.filter(s => s.category_id === categoryId && s.available !== false);
+        const services = gData.services.filter(s => s.category_id === categoryId);
 
         if (services.length > 0) {
             services.forEach((service, index) => {
                 const serviceElement = document.createElement('div');
-                serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
-                serviceElement.style.animationDelay = `${index * 0.1}s`;
-                
+                let classes = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300';
+                let serviceHTML;
+
                 const price = service.base_price || service.price;
                 const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
+
+                if (service.available === false) {
+                    classes += ' relative'; // Needed for overlay positioning
+                    serviceElement.style.filter = 'grayscale(100%)';
+
+                    serviceHTML = `
+                        <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-xl z-10">
+                           <span class="text-white text-lg font-bold">غير متاحة</span>
+                        </div>
+                        <img loading="lazy" src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
+                        <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
+                        <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
+                        <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
+                        <button class="mt-4 w-full py-2 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed" disabled>اطلب الآن</button>
+                    `;
+                } else {
+                    classes += ' transform hover:scale-105';
+                    serviceHTML = `
+                        <img loading="lazy" src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
+                        <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
+                        <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
+                        <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
+                        <button class="service-details-btn mt-4 w-full py-2 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300" data-service-id="${service.id}">اطلب الآن</button>
+                    `;
+                }
                 
-                serviceElement.innerHTML = `
-                    <img src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
-                    <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
-                    <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
-                    <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
-                    <button class="service-details-btn mt-4 w-full py-2 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300" data-service-id="${service.id}">اطلب الآن</button>
-                `;
+                serviceElement.className = classes;
+                serviceElement.style.animationDelay = `${index * 0.1}s`;
+                serviceElement.innerHTML = serviceHTML;
+
                 servicesContainer.appendChild(serviceElement);
                 setTimeout(() => serviceElement.classList.add('fade-in'), 10);
             });
@@ -754,7 +791,7 @@
             
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
-                    <img src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
+                    <img loading="lazy" src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
                     <h2 class="text-2xl font-bold text-dark-green mb-2">${service.name}</h2>
                     <p class="text-gray-600 mb-4">${service.description || ''}</p>
                 `;
