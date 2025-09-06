@@ -616,26 +616,64 @@
         const subCategories = gData.categories.filter(c => c.parent_id === parentId);
 
         if (subCategories.length > 0) {
-            subCategories.forEach(cat => {
-                const subCatElement = document.createElement('a');
-                subCatElement.href = '#';
-                subCatElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                const bgImage = getSubCategoryImage(cat.id);
-                subCatElement.style.backgroundImage = `url('${bgImage}')`;
-                subCatElement.dataset.categoryId = cat.id;
-                subCatElement.innerHTML = `
-                    <div class="category-card-overlay rounded-2xl"></div>
-                    <div class="category-card-content">
-                        <h3 class="text-xl font-bold">${cat.name}</h3>
-                    </div>
-                `;
-                subCategoriesContainer.appendChild(subCatElement);
+            // If there are subcategories, display them along with any services in the unified view.
+            const services = gData.services.filter(s => s.category_id === parentId);
+            const combinedItems = [
+                ...subCategories.map(c => ({...c, item_type: 'category'})),
+                ...services.map(s => ({...s, item_type: 'service'}))
+            ];
+
+            combinedItems.forEach(item => {
+                const element = document.createElement('a');
+                element.href = '#';
+
+                if (item.item_type === 'category') {
+                    element.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+                    const bgImage = getSubCategoryImage(item.id);
+                    element.style.backgroundImage = `url('${bgImage}')`;
+                    element.dataset.categoryId = item.id;
+                    element.innerHTML = `
+                        <div class="category-card-overlay rounded-2xl"></div>
+                        <div class="category-card-content">
+                            <h3 class="text-xl font-bold">${item.name}</h3>
+                        </div>
+                    `;
+                } else { // item_type === 'service'
+                    const service = item;
+                    const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
+                    element.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+                    element.style.backgroundImage = `url('${serviceImage}')`;
+                    element.dataset.serviceId = service.id;
+
+                    let overlayContent = '';
+                    if (service.available === false) {
+                        element.style.filter = 'grayscale(100%)';
+                        element.classList.add('pointer-events-none');
+                        overlayContent = `
+                            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-2xl">
+                                <span class="text-white text-lg font-bold">غير متاحة</span>
+                            </div>
+                        `;
+                    }
+
+                    element.innerHTML = `
+                        <div class="category-card-overlay rounded-2xl"></div>
+                        <div class="category-card-content">
+                            <h3 class="text-xl font-bold">${service.name}</h3>
+                        </div>
+                        ${overlayContent}
+                    `;
+                }
+                subCategoriesContainer.appendChild(element);
             });
+
             mainCategoriesSection.classList.add('hidden');
             subCategoriesSection.classList.remove('hidden');
             servicesSection.classList.add('hidden');
             serviceDetailsSection.classList.add('hidden');
         } else {
+            // If there are no subcategories, call renderServices to display services in the detailed list view.
+            // This preserves the original behavior for service-only categories.
             renderServices(parentId);
         }
     }
@@ -1047,10 +1085,14 @@
     });
 
     subCategoriesContainer.addEventListener('click', (e) => {
-        const categoryCard = e.target.closest('.category-card');
-        if (categoryCard) {
+        const card = e.target.closest('.category-card');
+        if (card) {
             e.preventDefault();
-            renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
+            if (card.dataset.categoryId) {
+                renderSubCategories(parseInt(card.dataset.categoryId, 10));
+            } else if (card.dataset.serviceId) {
+                renderServiceDetails(parseInt(card.dataset.serviceId, 10));
+            }
         }
     });
 
