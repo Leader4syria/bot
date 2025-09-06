@@ -317,10 +317,14 @@ def automate_order(order_id, user_id, service_id, service_name, full_params, tot
         payload['qty'] = order.quantity
 
         url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}/params"
-        headers = {'api-token': ORANOS_API_KEY}
+        headers = {
+            "api-token": ORANOS_API_KEY,
+            "Accept": "application/json",
+            "Connection": "keep-alive"
+        }
 
         try:
-            response = requests.post(url, headers=headers, data=payload, timeout=30)
+            response = requests.get(url, headers=headers, params=payload, timeout=30)
             response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
 
             data = response.json()
