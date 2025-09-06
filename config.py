@@ -26,3 +26,7 @@ BACKUP_GROUB = -1002785826840
 PUSHBULLET_API_KEY = "o.4O8jZ9P5S5FfqapfN7Z6VnB7LGTBYgIS"
 
 WEBAPP_URL = None
+
+# Oranos Market API Configuration
+ORANOS_API_URL = "https://api.oranosmarket.com"
+ORANOS_API_KEY = "23ba0d3f9bdc1b755e775b2495a79df909cca80a77348d79"

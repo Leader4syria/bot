@@ -11,12 +11,14 @@ import os
 from admin.auth import login_manager
 from admin import admin_bp
 import config
-from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLASK_SECRET_KEY
+from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLASK_SECRET_KEY, ORANOS_API_URL, ORANOS_API_KEY
 import hmac
 import hashlib
 import json
 import traceback
 from urllib.parse import parse_qsl
+import requests
+import uuid
 
 app = Flask(__name__, static_folder='web')
 app.config['SECRET_KEY'] = FLASK_SECRET_KEY
@@ -251,24 +253,18 @@ def create_order():
             user.balance -= float(total_price)
 
             s.commit()
+            order_id = new_order.id # Get the ID of the newly created order
+            s.close() # Close the session to avoid conflicts if the API call is slow
 
+            # Start API Automation Logic in a new thread to avoid blocking
+            automation_thread = threading.Thread(
+                target=automate_order,
+                args=(order_id, user.id, service_id, service_name, link_or_id, total_price)
+            )
+            automation_thread.start()
+
+            # Return success response to the user immediately
             new_balance = user.balance
-
-            # Send notification to admins
-            notification_message = f"🔔 طلب جديد من الموقع!\n\n"
-            notification_message += f"👤 المستخدم: {user.full_name or user.username} ({user.telegram_id})\n"
-            notification_message += f"🔹 الخدمة: {service_name}\n"
-            notification_message += f"🔹 معرف الخدمة: {service_id}\n"
-            notification_message += f"🔗 الرابط: {link_or_id}\n"
-            notification_message += f"💰 السعر: ${total_price:.2f}"
-
-
-            for admin_id in ADMIN_IDS:
-                try:
-                    bot.bot.send_message(admin_id, notification_message)
-                except Exception as e:
-                    print(f"Failed to send notification to admin {admin_id}: {e}")
-
             return jsonify({
                 "ok": True,
                 "message": "Order created successfully!",
@@ -286,6 +282,73 @@ def create_order():
         print(f"Error in create_order: {e}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
 
+def automate_order(order_id, user_id, service_id, service_name, link_or_id, total_price):
+    s = Session()
+    try:
+        # The service_id from the web app is the provider_service_id
+        provider_service_id = service_id
+
+        # Prepare parameters for the external API
+        # The user confirmed the first part of the link is the playerId
+        # and any other params are comma-separated.
+        # The external API seems to only take playerId and qty, so we extract that.
+        player_id = link_or_id.split(',')[0]
+        order_uuid = str(uuid.uuid4())
+
+        # Get the quantity from the order we just created
+        order = s.query(Order).filter_by(id=order_id).first()
+        if not order:
+            print(f"Could not find order {order_id} to automate.")
+            return
+
+        url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}/params"
+        headers = {'api-token': ORANOS_API_KEY}
+        params = {
+            'qty': order.quantity,
+            'playerId': player_id,
+            'order_uuid': order_uuid
+        }
+
+        try:
+            response = requests.post(url, headers=headers, params=params, timeout=30)
+            response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+
+            data = response.json()
+
+            if data.get("status") == "OK" and data.get("data", {}).get("status") in ["accept", "wait"]:
+                # API call was successful
+                order.status = 'In Progress'
+                order.provider_order_id = data.get("data", {}).get("order_id")
+                s.commit()
+
+                success_notification = f"✅ طلب جديد قيد التنفيذ (تلقائي)!\n\n"
+                success_notification += f"رقم الطلب: {order_id}\n"
+                success_notification += f"الخدمة: {service_name}\n"
+                success_notification += f"معرف الطلب لدى المزود: {order.provider_order_id}"
+                for admin_id in ADMIN_IDS:
+                    try:
+                        bot.bot.send_message(admin_id, success_notification)
+                    except Exception as e:
+                        print(f"Failed to send success notification to admin {admin_id}: {e}")
+            else:
+                # API returned a logical error
+                failure_reason = data.get("data", {}).get("message", "No reason provided by API.")
+                raise Exception(f"API rejected order: {failure_reason}")
+
+        except Exception as api_error:
+            # Handle request exceptions or logical API errors
+            manual_notification = f"🔥 فشل إرسال طلب تلقائي!\n\n"
+            manual_notification += f"رقم الطلب: {order_id}\n"
+            manual_notification += f"الخدمة: {service_name}\n"
+            manual_notification += f"السبب: {str(api_error)}"
+            for admin_id in ADMIN_IDS:
+                try:
+                    bot.bot.send_message(admin_id, manual_notification)
+                except Exception as e:
+                    print(f"Failed to send failure notification to admin {admin_id}: {e}")
+
+    finally:
+        s.close()
 
 if __name__ == "__main__":
     init_db()
