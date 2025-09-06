@@ -992,17 +992,20 @@
             }
         }
 
-        const allParamValues = [];
+        const fullParams = {};
+        const paramValues = [];
         for (const param of paramsToProcess) {
             const input = document.getElementById(param);
             if (!input || !input.value.trim()) {
                 logError(`يرجى ملء حقل: ${param}`, new Error(`Missing required parameter: ${param}`));
                 return;
             }
-            allParamValues.push(input.value.trim());
+            const value = input.value.trim();
+            fullParams[param] = value;
+            paramValues.push(value);
         }
 
-        const link_or_id = allParamValues.join(',');
+        const link_or_id = paramValues.join(',');
 
         if (!link_or_id && paramsToProcess.length > 0) {
              logError('يرجى ملء جميع الحقول المطلوبة.', new Error('Missing required parameters.'));
@@ -1026,7 +1029,6 @@
                 quantity = parseFloat(selectedOptionValue);
             } else {
                 quantity = 1;
-                // The text option itself is now part of the link_or_id, so no need to send it separately
             }
         } else {
             const quantityInput = document.getElementById('quantity');
@@ -1057,7 +1059,8 @@
                     service_name: currentService.name,
                     quantity: quantity,
                     total_price: totalPrice,
-                    link_or_id: link_or_id
+                    link_or_id: link_or_id,
+                    full_params: fullParams
                 }),
             });
 

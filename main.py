@@ -226,6 +226,7 @@ def create_order():
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
         link_or_id = request.json.get('link_or_id')
+        full_params = request.json.get('full_params', {})
 
         if not all([service_id, service_name, quantity, total_price, link_or_id]):
              return jsonify({"ok": False, "error": "Missing order details"}), 400
@@ -263,7 +264,7 @@ def create_order():
             # Start API Automation Logic in a new thread to avoid blocking
             automation_thread = threading.Thread(
                 target=automate_order,
-                args=(order_id, user.id, service_id, service_name, link_or_id, total_price)
+                args=(order_id, user.id, service_id, service_name, full_params, total_price)
             )
             automation_thread.start()
 
@@ -285,18 +286,27 @@ def create_order():
         print(f"Error in create_order: {e}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
 
-def automate_order(order_id, user_id, service_id, service_name, link_or_id, total_price):
+def automate_order(order_id, user_id, service_id, service_name, full_params, total_price):
     s = Session()
     try:
-        # The service_id from the web app is the provider_service_id
         provider_service_id = service_id
 
         # Prepare parameters for the external API
-        # The user confirmed the first part of the link is the playerId
-        # and any other params are comma-separated.
-        # The external API seems to only take playerId and qty, so we extract that.
-        player_id = link_or_id.split(',')[0]
-        order_uuid = str(uuid.uuid4())
+        param_keys = list(full_params.keys())
+
+        payload = {
+            'order_uuid': str(uuid.uuid4())
+        }
+
+        # The first parameter is always playerId
+        if param_keys:
+            player_id_key = param_keys[0]
+            payload['playerId'] = full_params[player_id_key]
+
+        # Add any other params to the payload
+        if len(param_keys) > 1:
+            for key in param_keys[1:]:
+                payload[key] = full_params[key]
 
         # Get the quantity from the order we just created
         order = s.query(Order).filter_by(id=order_id).first()
@@ -304,13 +314,10 @@ def automate_order(order_id, user_id, service_id, service_name, link_or_id, tota
             print(f"Could not find order {order_id} to automate.")
             return
 
+        payload['qty'] = order.quantity
+
         url = f"{ORANOS_API_URL}/client/api/newOrder/{provider_service_id}/params"
         headers = {'api-token': ORANOS_API_KEY}
-        payload = {
-            'qty': order.quantity,
-            'playerId': player_id,
-            'order_uuid': order_uuid
-        }
 
         try:
             response = requests.post(url, headers=headers, data=payload, timeout=30)
@@ -340,10 +347,18 @@ def automate_order(order_id, user_id, service_id, service_name, link_or_id, tota
 
         except Exception as api_error:
             # Handle request exceptions or logical API errors
+            error_details = str(api_error)
+            if isinstance(api_error, requests.exceptions.HTTPError):
+                try:
+                    # Try to get more detailed error from JSON response
+                    error_details += f"\nرد السيرفر: {api_error.response.json()}"
+                except json.JSONDecodeError:
+                    error_details += f"\nرد السيرفر: {api_error.response.text}"
+
             manual_notification = f"🔥 فشل إرسال طلب تلقائي!\n\n"
             manual_notification += f"رقم الطلب: {order_id}\n"
             manual_notification += f"الخدمة: {service_name}\n"
-            manual_notification += f"السبب: {str(api_error)}"
+            manual_notification += f"السبب: {error_details}"
             for admin_id in ADMIN_IDS:
                 try:
                     bot.bot.send_message(admin_id, manual_notification)
