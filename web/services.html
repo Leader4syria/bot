@@ -6,7 +6,6 @@
     <title>واجهة خدمات ماركت حلب</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- إضافة مكتبة Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -93,7 +92,6 @@
             }
         }
         
-        /* تصحيح لعرض 3 عناصر في الصف على الشاشات المتوسطة والكبيرة */
         @media (min-width: 768px) {
             .grid-cols-2 {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -103,7 +101,6 @@
             }
         }
         
-        /* أنماط إضافية لصفحة الشراء */
         .quantity-input {
             width: 60px;
             text-align: center;
@@ -132,7 +129,6 @@
             border-radius: 12px;
         }
         
-        /* أنماط إضافية للأزرار في specificPackage */
         .quantity-option-btn {
             transition: all 0.3s ease;
         }
@@ -141,7 +137,6 @@
             color: white;
         }
         
-        /* أنماط جديدة للمسار (breadcrumb) */
         .breadcrumb {
             display: flex;
             align-items: center;
@@ -167,6 +162,81 @@
         }
         .breadcrumb-current {
             color: #6b7280;
+        }
+        
+        .quantity-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .quantity-option {
+            padding: 0.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .quantity-option:hover {
+            border-color: #064E3B;
+        }
+        .quantity-option.selected {
+            background-color: #064E3B;
+            color: white;
+            border-color: #064E3B;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .modal-copy-btn {
+            background-color: #064E3B;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            cursor: pointer;
+            text-align: center;
+        }
+        .modal-log-area {
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-family: monospace;
+            overflow-x: auto;
+            max-height: 40vh;
         }
     </style>
 </head>
@@ -220,7 +290,6 @@
                     العودة
                 </button>
                 
-                <!-- مسار التصفح (Breadcrumb) -->
                 <div id="breadcrumb" class="breadcrumb mb-4"></div>
                 
                 <h2 id="subcategories-title" class="text-xl font-bold mb-4 text-dark-green"></h2>
@@ -229,33 +298,29 @@
             
             <div id="services-section" class="hidden">
                 <button id="back-to-subcategories" class="mb-4 flex items-center text-dark-green font-semibold">
-                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
                     العودة
                 </button>
                 
-                <!-- مسار التصفح (Breadcrumb) -->
                 <div id="breadcrumb-services" class="breadcrumb mb-4"></div>
                 
                 <h2 id="products-title" class="text-xl font-bold mb-4 text-dark-green"></h2>
                 <div id="services" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
             
-            <!-- قسم جديد لعرض تفاصيل الخدمة وصفحة الشراء -->
             <div id="service-details-section" class="hidden">
                 <button id="back-to-services" class="mb-4 flex items-center text-dark-green font-semibold">
-                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="w-5 h-5 ml-2 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
                     العودة
                 </button>
                 
-                <!-- مسار التصفح (Breadcrumb) -->
                 <div id="breadcrumb-details" class="breadcrumb mb-4"></div>
                 
                 <div id="service-details" class="bg-white rounded-xl shadow-lg p-4">
-                    <!-- سيتم ملء محتوى الخدمة هنا ديناميكيًا -->
                 </div>
             </div>
         </main>
@@ -265,7 +330,7 @@
                 <a href="./pyments.html" class="flex flex-col items-center text-center text-light-green hover:text-white transition-colors duration-300">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                        <line x1="1" y1="10" x2="23" x2="23" y2="10"></line>
                         <path d="M12 14h.01"></path>
                         <path d="M16 14h.01"></path>
                         <path d="M8 14h.01"></path>
@@ -295,274 +360,331 @@
         </div>
     </div>
 
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-content">
+            <button id="close-modal-btn" class="modal-close-btn">&times;</button>
+            <h3 class="text-xl font-bold text-dark-green">سجل الأخطاء</h3>
+            <p class="text-sm text-gray-500 mt-1">يُرجى نسخ السجل وإرساله إلى الدعم الفني للمساعدة.</p>
+            <textarea id="error-log-area" class="modal-log-area w-full mt-4" readonly></textarea>
+            <div class="flex justify-center">
+                <button id="copy-log-btn" class="modal-copy-btn">نسخ السجل</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // تهيئة Supabase
-        const SUPABASE_URL = 'https://cgpmetovswckkosvyjxd.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNncG1ldG92c3dja2tvc3Z5anhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjY1NTAzMSwiZXhwIjoyMDcyMjMxMDMxfQ.xchgft2FcJrRguEden2Ghhmq9PSNvh3PrDKNEibEg2s';
+    const SUPABASE_URL = 'https://vgknohxqkkuxhtnqxzfb.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZna25vaHhxa2t1eGh0bnF4emZiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzA2ODgxMSwiZXhwIjoyMDcyNjQ0ODExfQ.nVhvJtXR3_g611P0wkHwbHDeUyIWHjA5aiba9u5aQ9Q';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const gData = {
+        user: null,
+        orders: [],
+        categories: [],
+        services: [],
+        initData: null,
+        breadcrumb: []
+    };
+    
+    const logs = [];
 
-        const gData = {
-            user: null,
-            orders: [],
-            categories: [],
-            services: [],
-            initData: null,
-            breadcrumb: []
-        };
+    function logError(message, error, showModal = true) {
+        const timestamp = new Date().toISOString();
+        const logEntry = { timestamp, message, error: error?.message || 'N/A' };
+        logs.push(logEntry);
+        console.error(message, error);
+        const logArea = document.getElementById('error-log-area');
+        if (logArea) {
+             logArea.value = logs.map(l => 
+                `[${l.timestamp}] ${l.message} - Error: ${l.error}`
+            ).join('\n');
+        }
+        if (showModal) {
+             showErrorModal(message);
+        }
+    }
 
-        const loader = document.getElementById('loader');
-        const appContent = document.getElementById('app-content');
-        const mainCategoriesSection = document.getElementById('main-categories-section');
-        const userBalanceEl = document.getElementById('user-balance');
-        const userIdDisplayEl = document.getElementById('user-id-display');
-        const mainCategoriesContainer = document.getElementById('main-categories');
-        const subCategoriesSection = document.getElementById('sub-categories-section');
-        const subCategoriesTitle = document.getElementById('subcategories-title');
-        const subCategoriesContainer = document.getElementById('sub-categories');
-        const servicesSection = document.getElementById('services-section');
-        const servicesTitle = document.getElementById('products-title');
-        const servicesContainer = document.getElementById('services');
-        const backToHomeBtn = document.getElementById('back-to-home');
-        const backToSubcategoriesBtn = document.getElementById('back-to-subcategories');
+    // دالة جديدة للتحقق من نوع القيم في qty_values
+    function determineQtyValuesType(qtyValues) {
+        if (!qtyValues || qtyValues.length === 0) return 'unknown';
         
-        const serviceDetailsSection = document.getElementById('service-details-section');
-        const serviceDetailsContainer = document.getElementById('service-details');
-        const backToServicesBtn = document.getElementById('back-to-services');
+        // إذا كانت جميع القيم أرقامًا
+        const allNumbers = qtyValues.every(item => {
+            const num = parseFloat(item);
+            return !isNaN(num) && isFinite(item);
+        });
         
-        const breadcrumbContainer = document.getElementById('breadcrumb');
-        const breadcrumbServicesContainer = document.getElementById('breadcrumb-services');
-        const breadcrumbDetailsContainer = document.getElementById('breadcrumb-details');
+        if (allNumbers) return 'numbers';
         
-        let currentParentId = null;
-        let currentService = null;
+        // إذا كانت جميع القيم نصوصًا
+        const allStrings = qtyValues.every(item => typeof item === 'string');
+        if (allStrings) return 'strings';
+        
+        return 'mixed';
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
+    const loader = document.getElementById('loader');
+    const appContent = document.getElementById('app-content');
+    const mainCategoriesSection = document.getElementById('main-categories-section');
+    const userBalanceEl = document.getElementById('user-balance');
+    const userIdDisplayEl = document.getElementById('user-id-display');
+    const mainCategoriesContainer = document.getElementById('main-categories');
+    const subCategoriesSection = document.getElementById('sub-categories-section');
+    const subCategoriesTitle = document.getElementById('subcategories-title');
+    const subCategoriesContainer = document.getElementById('sub-categories');
+    const servicesSection = document.getElementById('services-section');
+    const servicesTitle = document.getElementById('products-title');
+    const servicesContainer = document.getElementById('services');
+    const backToHomeBtn = document.getElementById('back-to-home');
+    const backToSubcategoriesBtn = document.getElementById('back-to-subcategories');
+    
+    const serviceDetailsSection = document.getElementById('service-details-section');
+    const serviceDetailsContainer = document.getElementById('service-details');
+    const backToServicesBtn = document.getElementById('back-to-services');
+    
+    const breadcrumbContainer = document.getElementById('breadcrumb');
+    const breadcrumbServicesContainer = document.getElementById('breadcrumb-services');
+    const breadcrumbDetailsContainer = document.getElementById('breadcrumb-details');
+    
+    const errorModal = document.getElementById('error-modal');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const copyLogBtn = document.getElementById('copy-log-btn');
+
+    let currentParentId = null;
+    let currentService = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
             const tg = window.Telegram.WebApp;
             tg.ready();
             gData.initData = tg.initData;
             fetchInitialData(tg.initData);
-        });
-
-        async function fetchInitialData(initData) {
-            try {
-                // Step 1: Fetch user balance and orders from local server
-                const localResponse = await fetch('/api/webapp/data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ initData: initData }),
-                });
-                if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
-                const localData = await localResponse.json();
-                if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
-
-                gData.user = localData.user;
-                gData.orders = localData.orders;
-
-                // Step 2: Fetch categories and services from Supabase
-                const { data: categories, error: categoriesError } = await supabase
-                    .from('categories')
-                    .select('*')
-                    .order('id');
-                if (categoriesError) throw categoriesError;
-
-                const { data: services, error: servicesError } = await supabase
-                    .from('services')
-                    .select('*')
-                    .order('id');
-                if (servicesError) throw servicesError;
-
-                gData.categories = categories || [];
-                gData.services = services || [];
-
-                // Step 3: Render the app with combined data
-                renderApp();
-
-            } catch (error) {
-                console.error('Error fetching initial data:', error);
-                mainCategoriesSection.innerHTML = `<p class="text-center text-red-500">حدث خطأ أثناء تحميل البيانات.</p>`;
-            } finally {
-                loader.style.display = 'none';
-                appContent.classList.remove('hidden');
-                appContent.classList.add('flex');
-            }
+        } catch (error) {
+            logError('Telegram WebApp is not available.', error);
+            fetchInitialData('local_test_data');
         }
+    });
 
-        function getSubCategoryImage(categoryId) {
-            const service = gData.services.find(s => s.category_id === categoryId && s.category_img);
-            if (service && service.category_img) {
-                return service.category_img;
-            }
-            const category = gData.categories.find(c => c.id === categoryId);
-            return `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(category?.name || 'تصنيف')}`;
+    async function fetchInitialData(initData) {
+        try {
+            const localResponse = await fetch('/api/webapp/data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ initData: initData }),
+            });
+            if (!localResponse.ok) throw new Error(`Local API error! status: ${localResponse.status}`);
+            const localData = await localResponse.json();
+            if (!localData.ok) throw new Error(localData.error || 'Failed to fetch local data.');
+
+            gData.user = localData.user;
+            gData.orders = localData.orders;
+
+            const { data: categories, error: categoriesError } = await supabase
+                .from('categories')
+                .select('*')
+                .order('id');
+            if (categoriesError) throw categoriesError;
+
+            const { data: services, error: servicesError } = await supabase
+                .from('services')
+                .select('*')
+                .order('id');
+            if (servicesError) throw servicesError;
+
+            gData.categories = categories || [];
+            gData.services = services || [];
+
+            renderApp();
+
+        } catch (error) {
+            logError('Error fetching initial data:', error);
+            mainCategoriesSection.innerHTML = `<p class="text-center text-red-500">حدث خطأ أثناء تحميل البيانات. يرجى إعادة تحميل الصفحة.</p>`;
+        } finally {
+            loader.style.display = 'none';
+            appContent.classList.remove('hidden');
+            appContent.classList.add('flex');
         }
+    }
 
-        function generateBreadcrumb(categoryId, container) {
-            if (!container) return;
-            container.innerHTML = '';
-            const homeItem = document.createElement('div');
-            homeItem.className = 'breadcrumb-item';
-            homeItem.innerHTML = `<span class="breadcrumb-link" data-category-id="home">الرئيسية</span>`;
-            container.appendChild(homeItem);
+    function getSubCategoryImage(categoryId) {
+        const service = gData.services.find(s => s.category_id === categoryId && s.category_img);
+        if (service && service.category_img) {
+            return service.category_img;
+        }
+        const category = gData.categories.find(c => c.id === categoryId);
+        return `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(category?.name || 'تصنيف')}`;
+    }
 
-            if (categoryId) {
-                const path = getCategoryPath(categoryId);
-                path.forEach((cat, index) => {
-                    const item = document.createElement('div');
-                    item.className = 'breadcrumb-item';
-                    if (index === path.length - 1) {
-                        item.innerHTML = `<span class="breadcrumb-current">${cat.name}</span>`;
-                    } else {
-                        item.innerHTML = `<span class="breadcrumb-link" data-category-id="${cat.id}">${cat.name}</span>`;
-                    }
-                    container.appendChild(item);
-                });
-            }
-            
-            const breadcrumbLinks = container.querySelectorAll('.breadcrumb-link');
-            breadcrumbLinks.forEach(link => {
-                link.addEventListener('click', () => {
-                    const catId = link.getAttribute('data-category-id');
-                    if (catId === 'home') {
-                        renderMainCategories();
-                    } else {
-                        renderSubCategories(parseInt(catId, 10));
-                    }
-                });
+    function generateBreadcrumb(categoryId, container) {
+        if (!container) return;
+        container.innerHTML = '';
+        const homeItem = document.createElement('div');
+        homeItem.className = 'breadcrumb-item';
+        homeItem.innerHTML = `<span class="breadcrumb-link" data-category-id="home">الرئيسية</span>`;
+        container.appendChild(homeItem);
+
+        if (categoryId) {
+            const path = getCategoryPath(categoryId);
+            path.forEach((cat, index) => {
+                const item = document.createElement('div');
+                item.className = 'breadcrumb-item';
+                if (index === path.length - 1) {
+                    item.innerHTML = `<span class="breadcrumb-current">${cat.name}</span>`;
+                } else {
+                    item.innerHTML = `<span class="breadcrumb-link" data-category-id="${cat.id}">${cat.name}</span>`;
+                }
+                container.appendChild(item);
             });
         }
-
-        function getCategoryPath(categoryId) {
-            const path = [];
-            let currentId = categoryId;
-            while (currentId) {
-                const category = gData.categories.find(c => c.id === currentId);
-                if (category) {
-                    path.unshift(category);
-                    currentId = category.parent_id;
+        
+        const breadcrumbLinks = container.querySelectorAll('.breadcrumb-link');
+        breadcrumbLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const catId = link.getAttribute('data-category-id');
+                if (catId === 'home') {
+                    renderMainCategories();
                 } else {
-                    break;
+                    renderSubCategories(parseInt(catId, 10));
                 }
+            });
+        });
+    }
+
+    function getCategoryPath(categoryId) {
+        const path = [];
+        let currentId = categoryId;
+        while (currentId) {
+            const category = gData.categories.find(c => c.id === currentId);
+            if (category) {
+                path.unshift(category);
+                currentId = category.parent_id;
+            } else {
+                break;
             }
-            return path;
         }
+        return path;
+    }
 
-        function renderApp() {
-            renderUserInfo();
-            renderMainCategories();
+    function renderApp() {
+        renderUserInfo();
+        renderMainCategories();
+    }
+
+    function renderUserInfo() {
+        if (gData.user) {
+            userBalanceEl.textContent = `$${gData.user.balance || '0.00'}`;
+            userIdDisplayEl.textContent = gData.user.id;
         }
+    }
 
-        function renderUserInfo() {
-            if (gData.user) {
-                userBalanceEl.textContent = `$${gData.user.balance || '0.00'}`;
-                userIdDisplayEl.textContent = gData.user.id;
-            }
-        }
+    function renderMainCategories() {
+        mainCategoriesContainer.innerHTML = '';
+        subCategoriesSection.classList.add('hidden');
+        servicesSection.classList.add('hidden');
+        serviceDetailsSection.classList.add('hidden');
+        mainCategoriesSection.classList.remove('hidden');
+        
+        gData.breadcrumb = [];
+        
+        const mainCategories = gData.categories.filter(c => c.parent_id === null);
+        mainCategories.forEach(cat => {
+            const catElement = document.createElement('a');
+            catElement.href = '#';
+            catElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+            const bgImage = cat.category_img || `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(cat.name)}`;
+            catElement.style.backgroundImage = `url('${bgImage}')`;
+            catElement.dataset.categoryId = cat.id;
+            catElement.innerHTML = `
+                <div class="category-card-overlay rounded-2xl"></div>
+                <div class="category-card-content">
+                    <h3 class="text-xl font-bold">${cat.name}</h3>
+                </div>
+            `;
+            mainCategoriesContainer.appendChild(catElement);
+        });
+    }
 
-        function renderMainCategories() {
-            mainCategoriesContainer.innerHTML = '';
-            subCategoriesSection.classList.add('hidden');
-            servicesSection.classList.add('hidden');
-            serviceDetailsSection.classList.add('hidden');
-            mainCategoriesSection.classList.remove('hidden');
-            
-            gData.breadcrumb = [];
-            
-            const mainCategories = gData.categories.filter(c => c.parent_id === null);
-            mainCategories.forEach(cat => {
-                const catElement = document.createElement('a');
-                catElement.href = '#';
-                catElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                const bgImage = cat.category_img || `https://placehold.co/600x400/064e3b/ecfdf5?text=${encodeURIComponent(cat.name)}`;
-                catElement.style.backgroundImage = `url('${bgImage}')`;
-                catElement.dataset.categoryId = cat.id;
-                catElement.innerHTML = `
+    function renderSubCategories(parentId) {
+        currentParentId = parentId;
+        subCategoriesContainer.innerHTML = '';
+        
+        const parentCategory = gData.categories.find(c => c.id === parentId);
+        subCategoriesTitle.textContent = parentCategory?.name || 'التصنيفات الفرعية';
+        
+        generateBreadcrumb(parentId, breadcrumbContainer);
+        
+        const subCategories = gData.categories.filter(c => c.parent_id === parentId);
+
+        if (subCategories.length > 0) {
+            subCategories.forEach(cat => {
+                const subCatElement = document.createElement('a');
+                subCatElement.href = '#';
+                subCatElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
+                const bgImage = getSubCategoryImage(cat.id);
+                subCatElement.style.backgroundImage = `url('${bgImage}')`;
+                subCatElement.dataset.categoryId = cat.id;
+                subCatElement.innerHTML = `
                     <div class="category-card-overlay rounded-2xl"></div>
                     <div class="category-card-content">
                         <h3 class="text-xl font-bold">${cat.name}</h3>
                     </div>
                 `;
-                mainCategoriesContainer.appendChild(catElement);
+                subCategoriesContainer.appendChild(subCatElement);
             });
-        }
-
-        function renderSubCategories(parentId) {
-            currentParentId = parentId;
-            subCategoriesContainer.innerHTML = '';
-            
-            const parentCategory = gData.categories.find(c => c.id === parentId);
-            subCategoriesTitle.textContent = parentCategory?.name || 'التصنيفات الفرعية';
-            
-            generateBreadcrumb(parentId, breadcrumbContainer);
-            
-            const subCategories = gData.categories.filter(c => c.parent_id === parentId);
-
-            if (subCategories.length > 0) {
-                subCategories.forEach(cat => {
-                    const subCatElement = document.createElement('a');
-                    subCatElement.href = '#';
-                    subCatElement.className = 'category-card rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 fade-in';
-                    const bgImage = getSubCategoryImage(cat.id);
-                    subCatElement.style.backgroundImage = `url('${bgImage}')`;
-                    subCatElement.dataset.categoryId = cat.id;
-                    subCatElement.innerHTML = `
-                        <div class="category-card-overlay rounded-2xl"></div>
-                        <div class="category-card-content">
-                            <h3 class="text-xl font-bold">${cat.name}</h3>
-                        </div>
-                    `;
-                    subCategoriesContainer.appendChild(subCatElement);
-                });
-                mainCategoriesSection.classList.add('hidden');
-                subCategoriesSection.classList.remove('hidden');
-                servicesSection.classList.add('hidden');
-                serviceDetailsSection.classList.add('hidden');
-            } else {
-                renderServices(parentId);
-            }
-        }
-
-        function renderServices(categoryId) {
-            currentParentId = categoryId;
-            servicesContainer.innerHTML = '';
-            const category = gData.categories.find(c => c.id === categoryId);
-            servicesTitle.textContent = category?.name || 'الخدمات';
-            
-            generateBreadcrumb(categoryId, breadcrumbServicesContainer);
-            
-            const services = gData.services.filter(s => s.category_id === categoryId && s.available !== false);
-
-            if (services.length > 0) {
-                services.forEach((service, index) => {
-                    const serviceElement = document.createElement('div');
-                    serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
-                    serviceElement.style.animationDelay = `${index * 0.1}s`;
-                    
-                    const price = service.base_price || service.price;
-                    const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
-                    
-                    serviceElement.innerHTML = `
-                        <img src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
-                        <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
-                        <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
-                        <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
-                        <button class="service-details-btn mt-4 w-full py-2 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300" data-service-id="${service.id}">اطلب الآن</button>
-                    `;
-                    servicesContainer.appendChild(serviceElement);
-                    setTimeout(() => serviceElement.classList.add('fade-in'), 10);
-                });
-            } else {
-                servicesContainer.innerHTML = '<p class="text-center col-span-1 md:col-span-2">لا توجد خدمات في هذا التصنيف.</p>';
-            }
             mainCategoriesSection.classList.add('hidden');
-            subCategoriesSection.classList.add('hidden');
-            servicesSection.classList.remove('hidden');
+            subCategoriesSection.classList.remove('hidden');
+            servicesSection.classList.add('hidden');
             serviceDetailsSection.classList.add('hidden');
+        } else {
+            renderServices(parentId);
         }
+    }
 
-        function renderServiceDetails(serviceId) {
+    function renderServices(categoryId) {
+        currentParentId = categoryId;
+        servicesContainer.innerHTML = '';
+        const category = gData.categories.find(c => c.id === categoryId);
+        servicesTitle.textContent = category?.name || 'الخدمات';
+        
+        generateBreadcrumb(categoryId, breadcrumbServicesContainer);
+        
+        const services = gData.services.filter(s => s.category_id === categoryId && s.available !== false);
+
+        if (services.length > 0) {
+            services.forEach((service, index) => {
+                const serviceElement = document.createElement('div');
+                serviceElement.className = 'bg-white rounded-xl shadow-lg p-4 flex flex-col transition-all duration-300 transform hover:scale-105';
+                serviceElement.style.animationDelay = `${index * 0.1}s`;
+                
+                const price = service.base_price || service.price;
+                const serviceImage = service.category_img || `https://placehold.co/600x400/ecfdf5/064e3b?text=${encodeURIComponent(service.name)}`;
+                
+                serviceElement.innerHTML = `
+                    <img src="${serviceImage}" alt="${service.name}" class="rounded-lg mb-4 w-full h-32 object-cover">
+                    <h3 class="text-lg font-bold text-dark-green">${service.name}</h3>
+                    <p class="text-sm text-gray-500 my-2">${service.description || ''}</p>
+                    <span class="text-xl font-extrabold text-dark-green mt-auto">$${price}</span>
+                    <button class="service-details-btn mt-4 w-full py-2 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300" data-service-id="${service.id}">اطلب الآن</button>
+                `;
+                servicesContainer.appendChild(serviceElement);
+                setTimeout(() => serviceElement.classList.add('fade-in'), 10);
+            });
+        } else {
+            servicesContainer.innerHTML = '<p class="text-center col-span-1 md:col-span-2">لا توجد خدمات في هذا التصنيف.</p>';
+        }
+        mainCategoriesSection.classList.add('hidden');
+        subCategoriesSection.classList.add('hidden');
+        servicesSection.classList.remove('hidden');
+        serviceDetailsSection.classList.add('hidden');
+    }
+
+    function renderServiceDetails(serviceId) {
+        try {
             const service = gData.services.find(s => s.id == serviceId);
-            if (!service) return;
+            if (!service) {
+                logError(`Service with ID ${serviceId} not found.`, new Error('Service not found.'), true);
+                return;
+            }
             
             currentService = service;
             
@@ -572,54 +694,121 @@
             generateBreadcrumb(service.category_id, breadcrumbDetailsContainer);
             
             let paramsData = [];
-            try {
-                if (service.params) paramsData = JSON.parse(service.params);
-            } catch (e) { console.error('Error parsing params:', e); }
-            
-            let qtyValues = null;
-            try {
-                if (service.qty_values) qtyValues = JSON.parse(service.qty_values);
-            } catch (e) { console.error('Error parsing qty_values:', e); }
+            if (service.params) {
+                try {
+                    if (typeof service.params === 'string') {
+                        const parsedParams = JSON.parse(service.params);
+                        if (Array.isArray(parsedParams)) {
+                            paramsData = parsedParams;
+                        } else {
+                            paramsData = service.params.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                        }
+                    } else if (Array.isArray(service.params)) {
+                        paramsData = service.params;
+                    }
+                } catch (e) {
+                    logError("Failed to parse service params. Falling back to string split.", e, false);
+                    if (typeof service.params === 'string') {
+                        paramsData = service.params.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                    }
+                }
+            }
             
             let serviceDetailsHTML = `
                 <div class="flex flex-col items-center">
                     <img src="${serviceImage}" alt="${service.name}" class="service-details-img mb-4">
                     <h2 class="text-2xl font-bold text-dark-green mb-2">${service.name}</h2>
-                    <p class="text-gray-600 mb-4">${service.description || ''}</p>`;
+                    <p class="text-gray-600 mb-4">${service.description || ''}</p>
+                `;
             
-            if (paramsData && paramsData.length > 0) {
+            if (paramsData && Array.isArray(paramsData) && paramsData.length > 0) {
                 serviceDetailsHTML += `<div class="w-full mb-4 space-y-3"><h3 class="text-lg font-semibold text-dark-green">المعلومات المطلوبة:</h3>`;
-                paramsData.forEach((param, index) => {
+                paramsData.forEach((param) => {
                     serviceDetailsHTML += `
                         <div>
-                            <label for="param-${index}" class="block text-sm font-medium text-gray-700 mb-1">${param}</label>
-                            <input type="text" id="param-${index}" class="w-full p-2 border border-gray-300 rounded-md" placeholder="أدخل ${param}" required>
+                            <label for="${param}" class="block text-sm font-medium text-gray-700 mb-1">${param}</label>
+                            <input type="${param.includes('كلمة السر') ? 'password' : 'text'}" id="${param}" class="w-full p-2 border border-gray-300 rounded-md" placeholder="أدخل ${param}" required>
                         </div>`;
                 });
                 serviceDetailsHTML += `</div>`;
             }
             
-            if (service.product_type === "package") {
-                if (qtyValues) {
-                    if (Array.isArray(qtyValues)) {
-                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><select id="quantity" class="w-full p-2 border border-gray-300 rounded-md">`;
-                        qtyValues.forEach(value => { serviceDetailsHTML += `<option value="${value}">${value}</option>`; });
-                        serviceDetailsHTML += `</select></div>`;
-                    } else if (typeof qtyValues === 'object' && qtyValues.min && qtyValues.max) {
-                        serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${qtyValues.min} - ${qtyValues.max})</label><input type="number" id="quantity" min="${qtyValues.min}" max="${qtyValues.max}" value="${qtyValues.min}" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
-                    }
-                } else {
-                    serviceDetailsHTML += `<div class="w-full mb-4"><label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية</label><input type="number" id="quantity" min="1" value="1" class="w-full p-2 border border-gray-300 rounded-md"></div>`;
-                }
-            } else {
-                serviceDetailsHTML += `<input type="hidden" id="quantity" value="1">`;
-            }
+            let initialQty = 1;
+            let qtyValuesType = 'numbers'; // القيمة الافتراضية
             
+            if (service.product_type === 'amount') {
+                let minQty = 1;
+                let maxQty = 5000000;
+                try {
+                    let qtyValues = service.qty_values;
+                    if (typeof qtyValues === 'string') {
+                         qtyValues = JSON.parse(qtyValues);
+                    }
+                    if (qtyValues && typeof qtyValues === 'object' && 'min' in qtyValues && 'max' in qtyValues) {
+                        minQty = parseFloat(qtyValues.min);
+                        maxQty = parseFloat(qtyValues.max);
+                        initialQty = minQty;
+                        if (isNaN(minQty) || isNaN(maxQty)) {
+                            logError("Invalid min/max values parsed for qty_values. Using defaults.", new Error('NaN values in qty_values.'), false);
+                            minQty = 1;
+                            maxQty = 5000000;
+                        }
+                    } else {
+                        logError(`Invalid qty_values format for service ${service.id}. Using default values.`, new Error('Invalid JSON format for qty_values.'), false);
+                    }
+                } catch (e) {
+                    logError(`Could not parse qty_values for service ${service.id}. Using default values.`, e, false);
+                }
+                
+                serviceDetailsHTML += `
+                    <div class="w-full mb-4">
+                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">الكمية (${minQty} - ${maxQty})</label>
+                        <input type="number" id="quantity" min="${minQty}" max="${maxQty}" value="${initialQty}" class="w-full p-2 border border-gray-300 rounded-md">
+                    </div>`;
+            } else if (service.product_type === 'specificPackage') {
+                 try {
+                    let qtyValues = service.qty_values;
+                    if (typeof qtyValues === 'string') {
+                         qtyValues = JSON.parse(qtyValues);
+                    }
+                    
+                    if (Array.isArray(qtyValues) && qtyValues.length > 0) {
+                         // تحديد نوع القيم
+                         qtyValuesType = determineQtyValuesType(qtyValues);
+                         initialQty = qtyValues[0];
+                         
+                         serviceDetailsHTML += `
+                            <div class="w-full mb-4">
+                                <label for="quantity-select" class="block text-sm font-medium text-gray-700 mb-2">
+                                    ${qtyValuesType === 'numbers' ? 'اختر الكمية' : 'اختر الخيار'}
+                                </label>
+                                <div id="quantity-options" class="quantity-options">`;
+                         qtyValues.forEach((qty) => {
+                              serviceDetailsHTML += `
+                                <div class="quantity-option cursor-pointer rounded-lg px-4 py-2 bg-gray-200 text-gray-800 hover:bg-dark-green hover:text-white transition duration-200" 
+                                     data-qty="${qty}" 
+                                     data-type="${qtyValuesType}">
+                                    ${qty}
+                                </div>`;
+                         });
+                         serviceDetailsHTML += `</div></div>`;
+                    } else {
+                        logError(`Invalid qty_values format for service ${service.id}. Expected an array.`, new Error('Invalid JSON array format for qty_values.'), false);
+                         serviceDetailsHTML += `<p class="text-red-500 text-center">خطأ في تهيئة الخيارات الثابتة.</p>`;
+                    }
+                } catch (e) {
+                     logError(`Could not parse qty_values for service ${service.id}. Expected a JSON array.`, e, false);
+                     serviceDetailsHTML += `<p class="text-red-500 text-center">خطأ في تحميل الخيارات الثابتة.</p>`;
+                }
+            }
+
+            const initialPrice = basePrice * (qtyValuesType === 'numbers' ? initialQty : 1);
+
             serviceDetailsHTML += `
                 <div class="w-full mb-4 p-3 bg-gray-100 rounded-lg">
                     <div class="flex justify-between items-center">
                         <span class="text-lg font-semibold">السعر:</span>
-                        <span id="total-price" class="text-xl font-bold text-dark-green">$${basePrice.toFixed(2)}</span>
+                        <span id="total-price" class="text-xl font-bold text-dark-green">$${initialPrice.toFixed(2)}</span>
                     </div>
                 </div>
                 <button id="confirm-purchase" class="w-full py-3 bg-dark-green text-white font-bold rounded-lg hover:bg-green-700 transition-colors duration-300">تأكيد الطلب</button></div>`;
@@ -631,6 +820,20 @@
                 quantityInput.addEventListener('change', calculateTotalPrice);
                 quantityInput.addEventListener('input', calculateTotalPrice);
             }
+
+            const quantityOptions = document.getElementById('quantity-options');
+            if (quantityOptions) {
+                quantityOptions.querySelectorAll('.quantity-option').forEach((option, index) => {
+                    if (index === 0) {
+                        option.classList.add('selected');
+                    }
+                    option.addEventListener('click', (e) => {
+                        quantityOptions.querySelectorAll('.quantity-option').forEach(o => o.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                        calculateTotalPrice();
+                    });
+                });
+            }
             
             document.getElementById('confirm-purchase').addEventListener('click', confirmPurchase);
             
@@ -638,126 +841,249 @@
             subCategoriesSection.classList.add('hidden');
             servicesSection.classList.add('hidden');
             serviceDetailsSection.classList.remove('hidden');
+        } catch (error) {
+            logError('Failed to render service details:', error);
         }
+    }
 
-        function calculateTotalPrice() {
-            const quantityInput = document.getElementById('quantity');
+    function calculateTotalPrice() {
+        try {
             const totalPriceElement = document.getElementById('total-price');
-            if (!quantityInput || !totalPriceElement || !currentService) return;
-            
-            const quantity = parseInt(quantityInput.value, 10) || 1;
+            if (!totalPriceElement || !currentService) {
+                logError('Missing elements for price calculation. Cannot calculate.', new Error('DOM elements missing.'), false);
+                return;
+            }
+
             const basePrice = parseFloat(currentService.base_price || currentService.price);
-            const totalPrice = basePrice * quantity;
+            let quantity;
+
+            if (currentService.product_type === 'specificPackage') {
+                const selectedOption = document.querySelector('.quantity-option.selected');
+                if (selectedOption) {
+                    // الحصول على نوع القيم من السمة data-type
+                    const optionType = selectedOption.getAttribute('data-type');
+                    const optionValue = selectedOption.getAttribute('data-qty');
+                    
+                    // إذا كانت القيم أرقامًا، نستخدمها في الحساب
+                    if (optionType === 'numbers') {
+                        quantity = parseFloat(optionValue);
+                    } else {
+                        // إذا كانت نصوصًا، نستخدم الكمية 1 (لأن السعر ثابت بغض النظر عن الخيار)
+                        quantity = 1;
+                    }
+                } else {
+                    quantity = 1;
+                }
+            } else if (currentService.product_type === 'amount') {
+                const quantityInput = document.getElementById('quantity');
+                quantity = parseFloat(quantityInput.value) || 1;
+            } else {
+                quantity = 1;
+            }
             
+            if (isNaN(basePrice) || isNaN(quantity)) {
+                logError('Invalid price or quantity value. Cannot calculate.', new Error('NaN values detected.'), false);
+                totalPriceElement.textContent = `$0.00`;
+                return;
+            }
+
+            const totalPrice = basePrice * quantity;
             totalPriceElement.textContent = `$${totalPrice.toFixed(2)}`;
+        } catch (error) {
+            logError('Error calculating total price:', error, false);
+        }
+    }
+
+    async function confirmPurchase() {
+        if (!currentService) {
+            logError('Failed to confirm purchase: currentService is null.', new Error('No service selected.'), true);
+            return;
         }
 
-        async function confirmPurchase() {
-            if (!currentService) return;
-            
-            const paramsData = [];
+        let paramsData = {};
+        
+        let paramsToProcess = [];
+        if (currentService.params) {
             try {
-                if (currentService.params) {
-                    const paramsArray = JSON.parse(currentService.params);
-                    paramsArray.forEach((param, index) => {
-                        const input = document.getElementById(`param-${index}`);
-                        if (input && input.value.trim()) {
-                            paramsData.push({ name: param, value: input.value.trim() });
-                        } else {
-                            throw new Error(`Please fill out the ${param} field.`);
-                        }
-                    });
+                if (typeof currentService.params === 'string') {
+                    const parsed = JSON.parse(currentService.params);
+                    paramsToProcess = Array.isArray(parsed) ? parsed : currentService.params.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                } else if (Array.isArray(currentService.params)) {
+                    paramsToProcess = currentService.params;
                 }
             } catch (e) {
-                alert(e.message);
-                return;
-            }
-            
-            const quantityInput = document.getElementById('quantity');
-            const quantity = quantityInput ? parseInt(quantityInput.value, 10) : 1;
-            const basePrice = parseFloat(currentService.base_price || currentService.price);
-            const totalPrice = basePrice * quantity;
-            
-            if (parseFloat(gData.user.balance) < totalPrice) {
-                alert('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.');
-                return;
-            }
-            
-            try {
-                const response = await fetch('/api/create_order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        initData: gData.initData,
-                        service_id: currentService.id,
-                        quantity: quantity,
-                        total_price: totalPrice,
-                        params: paramsData
-                    }),
-                });
-
-                const result = await response.json();
-
-                if (result.ok) {
-                    gData.user.balance = result.new_balance;
-                    renderUserInfo();
-                    alert('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
-                    renderServices(currentService.category_id);
-                } else {
-                    throw new Error(result.error || 'Failed to create order.');
-                }
-            } catch (error) {
-                console.error('Error creating order:', error);
-                alert(`حدث خطأ أثناء تأكيد الطلب: ${error.message}`);
+                logError("Failed to parse service params in confirmPurchase. Using fallback.", e, false);
+                 if (typeof currentService.params === 'string') {
+                     paramsToProcess = currentService.params.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                 }
             }
         }
 
-        mainCategoriesContainer.addEventListener('click', (e) => {
-            const categoryCard = e.target.closest('.category-card');
-            if (categoryCard) {
-                e.preventDefault();
-                renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
-            }
-        });
-
-        subCategoriesContainer.addEventListener('click', (e) => {
-            const categoryCard = e.target.closest('.category-card');
-            if (categoryCard) {
-                e.preventDefault();
-                renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
-            }
-        });
-
-        servicesContainer.addEventListener('click', (e) => {
-            const serviceDetailsBtn = e.target.closest('.service-details-btn');
-            if (serviceDetailsBtn) {
-                e.preventDefault();
-                renderServiceDetails(parseInt(serviceDetailsBtn.dataset.serviceId, 10));
-            }
-        });
-
-        backToHomeBtn.addEventListener('click', () => renderMainCategories());
-
-        backToSubcategoriesBtn.addEventListener('click', () => {
-             if (currentParentId) {
-                const category = gData.categories.find(c => c.id === currentParentId);
-                if (category && category.parent_id) {
-                    renderSubCategories(category.parent_id);
-                } else {
-                    renderMainCategories();
+        if (paramsToProcess && Array.isArray(paramsToProcess)) {
+             for (const param of paramsToProcess) {
+                const input = document.getElementById(param);
+                if (!input || !input.value.trim()) {
+                    logError(`يرجى ملء حقل: ${param}`, new Error(`Missing required parameter: ${param}`));
+                    return;
                 }
-            } else {
-                renderMainCategories();
+                paramsData[param] = input.value.trim();
             }
-        });
+        }
+        
+        let quantity;
+        let selectedOptionValue = null;
+        
+        if (currentService.product_type === 'specificPackage') {
+            const selectedOption = document.querySelector('.quantity-option.selected');
+            if (!selectedOption) {
+                logError('Please select an option.', new Error('No option selected.'));
+                return;
+            }
+            
+            // الحصول على القيمة والنوع من الخيار المحدد
+            selectedOptionValue = selectedOption.getAttribute('data-qty');
+            const optionType = selectedOption.getAttribute('data-type');
+            
+            // إذا كانت القيم أرقامًا، نستخدمها في الحساب
+            if (optionType === 'numbers') {
+                quantity = parseFloat(selectedOptionValue);
+            } else {
+                // إذا كانت نصوصًا، نستخدم الكمية 1 (لأن السعر ثابت)
+                quantity = 1;
+                // إضافة الخيار المحدد إلى paramsData
+                paramsData['selected_option'] = selectedOptionValue;
+            }
+        } else {
+            const quantityInput = document.getElementById('quantity');
+            quantity = quantityInput ? parseFloat(quantityInput.value) : 1;
+        }
+        
+        const basePrice = parseFloat(currentService.base_price || currentService.price);
+        
+        if (isNaN(quantity) || isNaN(basePrice)) {
+            logError('Invalid quantity or price value before sending the request.', new Error('NaN quantity or price.'), true);
+            return;
+        }
+        
+        let totalPrice = basePrice * quantity;
+        
+        if (parseFloat(gData.user.balance) < totalPrice) {
+            logError('رصيدك غير كافٍ لإتمام هذه العملية. يرجى شحن رصيدك أولاً.', new Error('Insufficient balance.'));
+            return;
+        }
 
-        backToServicesBtn.addEventListener('click', () => {
-            if (currentService) {
+        try {
+            const response = await fetch('/api/create_order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    initData: gData.initData,
+                    service_id: currentService.id,
+                    quantity: quantity,
+                    total_price: totalPrice,
+                    params: paramsData,
+                    selected_option: selectedOptionValue // إرسال الخيار المحدد حتى لو كان نصيًا
+                }),
+            });
+
+            const result = await response.json();
+
+            if (result.ok) {
+                const newBalance = parseFloat(result.new_balance);
+                gData.user.balance = newBalance.toFixed(2);
+                renderUserInfo();
+                showSuccessModal('تم تأكيد طلبك بنجاح! سيتم معالجة طلبك قريباً.');
                 renderServices(currentService.category_id);
             } else {
+                logError(result.error || 'Failed to create order.', new Error(result.error || 'Failed to create order.'));
+            }
+        } catch (error) {
+            logError('Error creating order:', error);
+        }
+    }
+
+    function showSuccessModal(message) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content text-center">
+                <h3 class="text-xl font-bold text-dark-green mb-4">نجاح!</h3>
+                <p>${message}</p>
+                <button onclick="this.closest('.modal').remove()" class="modal-copy-btn mt-4">حسناً</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    function showErrorModal(message) {
+        document.getElementById('error-log-area').value = logs.map(l => 
+            `[${l.timestamp}] ${l.message} - Error: ${l.error}`
+        ).join('\n');
+        const modalMessageEl = errorModal.querySelector('p');
+        modalMessageEl.textContent = message;
+        errorModal.classList.remove('hidden');
+    }
+
+    closeModalBtn.addEventListener('click', () => {
+        errorModal.classList.add('hidden');
+    });
+
+    copyLogBtn.addEventListener('click', () => {
+        const logArea = document.getElementById('error-log-area');
+        logArea.select();
+        document.execCommand('copy');
+        copyLogBtn.textContent = 'تم النسخ!';
+        setTimeout(() => {
+            copyLogBtn.textContent = 'نسخ السجل';
+        }, 2000);
+    });
+
+    mainCategoriesContainer.addEventListener('click', (e) => {
+        const categoryCard = e.target.closest('.category-card');
+        if (categoryCard) {
+            e.preventDefault();
+            renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
+        }
+    });
+
+    subCategoriesContainer.addEventListener('click', (e) => {
+        const categoryCard = e.target.closest('.category-card');
+        if (categoryCard) {
+            e.preventDefault();
+            renderSubCategories(parseInt(categoryCard.dataset.categoryId, 10));
+        }
+    });
+
+    servicesContainer.addEventListener('click', (e) => {
+        const serviceDetailsBtn = e.target.closest('.service-details-btn');
+        if (serviceDetailsBtn) {
+            e.preventDefault();
+            renderServiceDetails(parseInt(serviceDetailsBtn.dataset.serviceId, 10));
+        }
+    });
+
+    backToHomeBtn.addEventListener('click', () => renderMainCategories());
+
+    backToSubcategoriesBtn.addEventListener('click', () => {
+         if (currentParentId) {
+            const category = gData.categories.find(c => c.id === currentParentId);
+            if (category && category.parent_id) {
+                renderSubCategories(category.parent_id);
+            } else {
                 renderMainCategories();
             }
-        });
+        } else {
+            renderMainCategories();
+        }
+    });
+
+    backToServicesBtn.addEventListener('click', () => {
+        if (currentService) {
+            renderServices(currentService.category_id);
+        } else {
+            renderMainCategories();
+        }
+    });
     </script>
 </body>
 </html>

@@ -15,7 +15,7 @@ from config import FLASK_PORT, ADMIN_IDS, BACKUP_GROUB, BOT_TOKEN, GROUP_ID, FLA
 import hmac
 import hashlib
 import json
-from sqlalchemy.orm import joinedload
+import traceback
 from urllib.parse import parse_qsl
 
 app = Flask(__name__, static_folder='web')
@@ -160,7 +160,15 @@ def get_webapp_data():
                 user = s.query(User).filter_by(telegram_id=user_id).first()
 
             # Fetch user and order data
-            orders_q = s.query(Order).options(joinedload(Order.service)).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
+            orders_q = s.query(Order).filter_by(user_id=user_id).order_by(Order.ordered_at.desc()).all()
+
+            service_map = {}
+            service_ids = {o.service_id for o in orders_q}
+            if service_ids:
+                # Fetch all corresponding services in a single query
+                services = s.query(Service).filter(Service.id.in_(service_ids)).all()
+                service_map = {service.id: service.name for service in services}
+
 
             # Serialize data into a clean format for the frontend
             user_info = {
@@ -172,7 +180,7 @@ def get_webapp_data():
             orders_info = [
                 {
                     "id": o.id,
-                    "service_name": o.service.name if o.service else "Unknown Service",
+                    "service_name": service_map.get(o.service_id, f"خدمة غير معروفة ({o.service_id})"),
                     "quantity": o.quantity,
                     "total_price": f"{o.total_price:.2f}",
                     "status": o.status,
@@ -188,7 +196,7 @@ def get_webapp_data():
         finally:
             s.close()
     except Exception as e:
-        print(f"Error in get_webapp_data: {e}")
+        print(f"Error in get_webapp_data: {e}\n{traceback.format_exc()}")
         return jsonify({"ok": False, "error": "An internal error occurred"}), 500
 
 @app.route('/api/create_order', methods=['POST'])
@@ -213,8 +221,9 @@ def create_order():
         quantity = request.json.get('quantity')
         total_price = request.json.get('total_price')
         params_data = request.json.get('params')
+        link_or_id = request.json.get('link_or_id')
 
-        if not all([service_id, quantity, total_price]):
+        if not all([service_id, quantity, total_price, link_or_id]):
              return jsonify({"ok": False, "error": "Missing order details"}), 400
 
         s = Session()
@@ -232,8 +241,9 @@ def create_order():
 
             new_order = Order(
                 user_id=user.telegram_id,
-                service_id=service_id, # This ID comes from Supabase
+                service_id=service_id,
                 quantity=quantity,
+                link_or_id=link_or_id,
                 total_price=total_price,
                 status='pending',
                 params=json.dumps(params_data, ensure_ascii=False) if params_data else None,

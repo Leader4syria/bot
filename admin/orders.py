@@ -1,8 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from . import admin_bp, admin_required
 from bot.start import send_message_to_user
-from database import Session, Order
-from sqlalchemy.orm import joinedload
+from database import Session, Order, Service
 import traceback
 
 @admin_bp.route('/orders')
@@ -10,7 +9,18 @@ import traceback
 def admin_orders():
     try:
         s = Session()
-        orders = s.query(Order).options(joinedload(Order.user), joinedload(Order.service)).order_by(Order.ordered_at.desc()).all()
+        orders = s.query(Order).options(joinedload(Order.user)).order_by(Order.ordered_at.desc()).all()
+
+        service_ids = {o.service_id for o in orders}
+        if service_ids:
+            services = s.query(Service).filter(Service.id.in_(service_ids)).all()
+            service_map = {service.id: service for service in services}
+        else:
+            service_map = {}
+
+        for order in orders:
+            order.service = service_map.get(order.service_id)
+
         s.close()
         return render_template('orders.html', orders=orders)
     except Exception as e:
@@ -39,9 +49,12 @@ def admin_update_order_status(order_id):
 
         try:
             order.status = new_status
+
+            service = s.query(Service).filter_by(id=order.service_id).first()
+            service_name = service.name if service else "خدمة غير معروفة"
+
             s.commit()
 
-            service_name = order.service.name if order.service else "خدمة غير معروفة"
             if new_status == "Completed":
                 message = f"✅ تم إكمال طلبك بنجاح!\nالطلب رقم #{order.id} للخدمة '{service_name}' تم إكماله. 🎉"
             elif new_status == "Canceled":
@@ -110,9 +123,12 @@ def api_admin_update_order_status(order_id):
 
         try:
             order.status = new_status
+
+            service = s.query(Service).filter_by(id=order.service_id).first()
+            service_name = service.name if service else "خدمة غير معروفة"
+
             s.commit()
 
-            service_name = order.service.name if order.service else "خدمة غير معروفة"
             if new_status == "Completed":
                 message = f"✅ تم إكمال طلبك بنجاح!\nالطلب رقم #{order.id} للخدمة '{service_name}' تم إكماله. 🎉"
             elif new_status == "Canceled":

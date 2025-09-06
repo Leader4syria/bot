@@ -1,7 +1,7 @@
 from flask_login import LoginManager, UserMixin
 from database import Session, User
 from config import ADMIN_IDS
-from bot.start import send_message_to_user
+from utils import send_message_to_user
 
 login_manager = LoginManager()
 login_manager.login_view = 'admin.admin_login'
